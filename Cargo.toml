@@ -17,12 +17,19 @@ m3u8-rs = "5.0.4"
 tempfile = "3.8.0"
 
 # 🚀 PERFORMANCE OPTIMIZATION PROFILES
-# Maximum optimization for production builds
 [profile.release]
-opt-level = 3
-debug = false
-strip = true
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-overflow-checks = false
+# Maximum optimization for production builds
+opt-level = 3              # Maximum optimization
+debug = false              # No debug info (smaller binary)
+strip = true               # Strip symbols (even smaller binary)
+lto = "fat"               # Link-time optimization (slower build, faster runtime)
+codegen-units = 1         # Single codegen unit (better optimization)
+panic = "abort"           # Abort on panic (slightly faster)
+overflow-checks = false   # Disable overflow checks (faster math)
+
+[profile.dev]
+# Faster development builds
+opt-level = 1             # Some optimization for dev builds
+debug = true              # Keep debug info
+incremental = true        # Faster incremental builds
+split-debuginfo = "unpacked"  # Better debug experience on macOS

@@ -1,9 +1,9 @@
 {
     "input_directories": [
-        "data/long_data"
+        "../data/20250121_camera_27"
     ],
     "output_directory": "output",
-    "output_prefix": "processed",
+    "output_prefix": "summary",
     "num_threads": 4,
     "output_fps": 30,
     "frame_interval": 30,

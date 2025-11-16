@@ -67,3 +67,20 @@ case $BUILD_TYPE in
 esac
 
 echo -e "${GREEN}Build completed successfully!${NC}"
+
+# Show binary information
+BINARY_NAME="media_core"
+if [ -f "target/release/$BINARY_NAME" ]; then
+    BINARY_SIZE=$(du -h target/release/$BINARY_NAME | cut -f1)
+    echo -e "${BLUE}Binary size: $BINARY_SIZE${NC}"
+    echo -e "${BLUE}Location: target/release/$BINARY_NAME${NC}"
+elif [ -f "target/release/rtsp_stream_extractor" ]; then
+    BINARY_SIZE=$(du -h target/release/rtsp_stream_extractor | cut -f1)
+    echo -e "${BLUE}Binary size: $BINARY_SIZE${NC}"
+    echo -e "${BLUE}Location: target/release/rtsp_stream_extractor${NC}"
+fi
+
+echo ""
+echo "Usage examples:"
+echo "  ./target/release/rtsp_stream_extractor process config_process.json"
+echo "  ./target/release/rtsp_stream_extractor process config_test_hwaccel.json"
