@@ -101,4 +101,4 @@ pub fn get_default_supported_formats() -> Vec<FileFormat> {
         FileFormat::Document(DocumentFormat::Xml),
         FileFormat::Document(DocumentFormat::Csv),
     ]
-} 
+}

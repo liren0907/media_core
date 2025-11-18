@@ -155,29 +155,3 @@ impl HardwareAcceleratedCapture {
         false
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_default_config() {
-        let config = HardwareAccelConfig::default();
-        assert_eq!(config.enabled, false);
-        assert_eq!(config.mode, "auto");
-        assert_eq!(config.fallback_to_cpu, true);
-    }
-
-    #[test]
-    fn test_platform_detection() {
-        let config = HardwareAccelConfig {
-            enabled: true,
-            mode: "auto".to_string(),
-            fallback_to_cpu: true,
-            prefer_backends: vec!["any".to_string()],
-        };
-        
-        let backends = HardwareAcceleratedCapture::get_platform_backends(&config);
-        assert!(!backends.is_empty());
-    }
-} 

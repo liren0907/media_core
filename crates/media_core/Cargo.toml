@@ -1,11 +1,7 @@
 [package]
-name = "media_core"
+name = "media-core"
 version = "0.1.0"
 edition = "2021"
-
-[[bin]]
-name = "media_core"
-path = "../src/main.rs"
 
 [dependencies]
 opencv = "0.93.5"

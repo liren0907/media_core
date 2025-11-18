@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "media_core",
+    "crates/media_core",
 ]
 
 [package]
@@ -9,7 +9,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-media_core = { path = "media_core" }
+media_core = { path = "crates/media_core", package = "media-core" }
 rfd = "0.14.1"
 serde = "1.0.214"
 serde_json = "1.0.132"

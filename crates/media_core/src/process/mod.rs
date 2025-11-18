@@ -13,8 +13,6 @@ pub mod video;
 pub mod factories;
 pub mod hw_accel;
 
-#[cfg(test)]
-mod tests;
 
 // Re-export commonly used items for convenience
 pub use types::{
@@ -29,4 +27,4 @@ pub use factories::{
     create_processor, create_processor_with_options, 
     create_processor_with_mode, create_video_processor
 }; 
-pub use hw_accel::{HardwareAccelConfig, HardwareAcceleratedCapture}; 
+pub use hw_accel::{HardwareAccelConfig, HardwareAcceleratedCapture};

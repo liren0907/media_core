@@ -474,4 +474,4 @@ impl Processor {
     pub fn run_video_extraction(&mut self, config_path: &str) -> Result<(), ProcessError> {
         VideoProcessor::run_video_extraction(config_path, &mut self.stats)
     }
-} 
+}
