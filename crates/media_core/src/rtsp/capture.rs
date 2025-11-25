@@ -13,6 +13,7 @@ pub struct RTSPCapture {
     pub segment_duration: Duration,
     pub use_custom_fps: bool,
     pub custom_fps: f64,
+    pub run_once: bool,
 }
 
 impl RTSPCapture {
@@ -23,6 +24,7 @@ impl RTSPCapture {
         segment_duration_secs: u64,
         use_custom_fps: bool,
         custom_fps: f64,
+        run_once: bool,
     ) -> Result<Self> {
         Ok(Self {
             url,
@@ -35,6 +37,7 @@ impl RTSPCapture {
             segment_duration: Duration::from_secs(segment_duration_secs),
             use_custom_fps,
             custom_fps,
+            run_once,
         })
     }
 
@@ -44,7 +47,10 @@ impl RTSPCapture {
             self.process_stream_opencv()
         } else {
             self.start_ffmpeg_recording().map_err(|e| {
-                opencv::Error::new(opencv::core::StsError, &format!("Failed to start FFmpeg: {}", e))
+                opencv::Error::new(
+                    opencv::core::StsError,
+                    &format!("Failed to start FFmpeg: {}", e),
+                )
             })?;
             self.process_stream_ffmpeg()
         }
