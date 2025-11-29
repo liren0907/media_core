@@ -15,6 +15,7 @@ pub fn print_usage() {
     println!("MODES:");
     println!("    rtsp                    Run RTSP stream capture mode");
     println!("    process <config_file>   Run video processing mode");
+    println!("    config <subcommand>     Generate configuration files (e.g., 'rtsp')");
     println!("    help                    Show this help message");
     println!();
     println!("EXAMPLES:");
@@ -22,7 +23,32 @@ pub fn print_usage() {
         "    cargo run rtsp                           # Capture RTSP streams using config.json"
     );
     println!("    cargo run process video_config.json     # Process videos using video config");
+    println!("    cargo run process video_config.json     # Process videos using video config");
+    println!("    cargo run config rtsp                    # Generate default RTSP config");
     println!("    cargo run help                           # Show help");
+}
+
+/// Run configuration generation mode
+pub fn run_config_mode(subcommand: &str) -> Result<(), Box<dyn Error>> {
+    match subcommand {
+        "rtsp" => {
+            println!("⚙️  Generating default RTSP configuration...");
+            media_core::rtsp::generate_default_config("config.json")?;
+            println!("✅ Generated 'config.json' successfully!");
+            Ok(())
+        }
+        "process" => {
+            println!("⚙️  Generating default Video Processing configuration...");
+            media_core::process::generate_default_config("process_config.json")?;
+            println!("✅ Generated 'process_config.json' successfully!");
+            Ok(())
+        }
+        _ => {
+            println!("Error: Unknown config subcommand '{}'", subcommand);
+            print_usage();
+            Ok(())
+        }
+    }
 }
 
 /// Run RTSP stream capture mode (original functionality)

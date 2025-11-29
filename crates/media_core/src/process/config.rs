@@ -1,6 +1,8 @@
-use serde::{Deserialize, Serialize};
-use crate::process::types::{ProcessingMode, FileFormat};
 use super::hw_accel::HardwareAccelConfig;
+use crate::process::types::{get_default_supported_formats, FileFormat, ProcessingMode};
+use serde::{Deserialize, Serialize};
+use std::fs::File;
+use std::io::Write;
 
 /// Video extraction configuration matching extraction/config.rs
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -15,14 +17,32 @@ pub struct VideoExtractionConfig {
     pub create_summary_per_thread: Option<bool>,
     pub video_creation_mode: Option<String>,
     pub processing_mode: Option<String>,
-    
+
     /// Hardware acceleration configuration
     #[serde(default)]
     pub hardware_acceleration: HardwareAccelConfig,
 }
 
+impl Default for VideoExtractionConfig {
+    fn default() -> Self {
+        Self {
+            input_directories: vec!["input_videos".to_string()],
+            output_directory: "output_frames".to_string(),
+            output_prefix: "frame".to_string(),
+            num_threads: Some(4),
+            output_fps: 30,
+            frame_interval: 1,
+            extraction_mode: "frames".to_string(),
+            create_summary_per_thread: Some(true),
+            video_creation_mode: Some("standard".to_string()),
+            processing_mode: Some("sequential".to_string()),
+            hardware_acceleration: HardwareAccelConfig::default(),
+        }
+    }
+}
+
 /// Basic process configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessConfig {
     pub input_path: String,
     pub output_path: String,
@@ -32,8 +52,21 @@ pub struct ProcessConfig {
     pub video_config: Option<VideoExtractionConfig>,
 }
 
+impl Default for ProcessConfig {
+    fn default() -> Self {
+        Self {
+            input_path: "input".to_string(),
+            output_path: "output".to_string(),
+            processing_options: ProcessingOptions::default(),
+            processing_mode: ProcessingMode::default(),
+            supported_formats: get_default_supported_formats(),
+            video_config: Some(VideoExtractionConfig::default()),
+        }
+    }
+}
+
 /// Processing options for the process module
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProcessingOptions {
     pub enable_validation: bool,
     pub verbose_logging: bool,
@@ -58,4 +91,15 @@ impl Default for ProcessingOptions {
             backup_original: false,
         }
     }
+}
+
+/// Generate a default configuration file for process mode
+pub fn generate_default_config(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let config = ProcessConfig::default();
+    let json = serde_json::to_string_pretty(&config)?;
+
+    let mut file = File::create(path)?;
+    file.write_all(json.as_bytes())?;
+
+    Ok(())
 }

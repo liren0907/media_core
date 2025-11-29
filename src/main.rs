@@ -21,6 +21,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             cli::run_process_mode(&args[2])?;
         }
+        "config" => {
+            if args.len() < 3 {
+                println!("Error: Config mode requires a subcommand (e.g., 'rtsp')");
+                println!("Usage: cargo run config <subcommand>");
+                return Ok(());
+            }
+            cli::run_config_mode(&args[2])?;
+        }
         "help" | "--help" | "-h" => cli::print_usage(),
         _ => {
             println!("Error: Unknown mode '{}'", args[1]);

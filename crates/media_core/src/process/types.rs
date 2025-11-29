@@ -1,5 +1,6 @@
-use std::fmt;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::fmt;
 
 /// Process module error types
 #[derive(Debug)]
@@ -26,8 +27,9 @@ impl fmt::Display for ProcessError {
 impl Error for ProcessError {}
 
 /// Processing modes available in the process module
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub enum ProcessingMode {
+    #[default]
     SingleFile,
     BatchFiles,
     DirectoryProcess,
@@ -35,7 +37,7 @@ pub enum ProcessingMode {
 }
 
 /// File format types supported by the processor
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FileFormat {
     Video(VideoFormat),
     Audio(AudioFormat),
@@ -43,8 +45,15 @@ pub enum FileFormat {
     Document(DocumentFormat),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl Default for FileFormat {
+    fn default() -> Self {
+        FileFormat::Video(VideoFormat::default())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub enum VideoFormat {
+    #[default]
     Mp4,
     Avi,
     Mkv,
@@ -52,7 +61,7 @@ pub enum VideoFormat {
     Webm,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AudioFormat {
     Mp3,
     Wav,
@@ -60,7 +69,7 @@ pub enum AudioFormat {
     Aac,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ImageFormat {
     Jpg,
     Png,
@@ -68,7 +77,7 @@ pub enum ImageFormat {
     Bmp,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DocumentFormat {
     Txt,
     Json,
