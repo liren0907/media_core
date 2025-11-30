@@ -21,9 +21,8 @@ WORKDIR /app
 # Copy the entire project context into the container
 COPY . .
 
-# Build the entire workspace in release mode
-# The `--workspace` flag is crucial for a workspace project
-RUN cargo build --workspace --release
+# Build the application in release mode
+RUN cargo build --release
 
-# Set the command to run the application in RTSP mode when the container starts
-ENTRYPOINT ["./target/release/rtsp_stream_extractor", "rtsp"] 
+# Set the command to run the application
+# ENTRYPOINT ["./target/release/media_core_app"] 

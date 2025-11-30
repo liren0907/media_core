@@ -56,8 +56,6 @@ results/
 output/
 outputs/
 assets/
-script/
-scripts/
 output_*
 
 # Installation
@@ -65,3 +63,12 @@ build/
 
 # Config for personal use
 config/
+
+# Docs (ignore)
+docs/optimized_compilation
+docs/media_core
+reference/
+references/
+
+# Others
+deprecated/

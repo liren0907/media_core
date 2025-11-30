@@ -45,4 +45,4 @@ impl ProcessingStats {
             (self.files_processed as f64 / total as f64) * 100.0
         }
     }
-} 
+}

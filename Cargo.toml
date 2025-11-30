@@ -1,17 +1,47 @@
-[workspace]
-members = [
-    "media_core",
-]
-
 [package]
-name = "rtsp_stream_extractor"
+name = "media_core"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+
+[lib]
+name = "media_core"
+path = "src/lib.rs"
+
+[[bin]]
+name = "media_core"
+path = "src/main.rs"
 
 [dependencies]
-media_core = { path = "media_core" }
+# Dependencies from media_core crate
+opencv = "0.93.5"
+serde = { version = "1.0", features = ["derive"] }
+chrono = "0.4"
+rayon = "1.8"
+num_cpus = "1.16"
+path-clean = "1.0"
+serde_path_to_error = "0.1"
+serde_json = "1.0"
+regex = "1.10"
+
+# Dependencies from rtsp_stream_extractor
 rfd = "0.14.1"
-serde = "1.0.214"
-serde_json = "1.0.132"
 m3u8-rs = "5.0.4"
 tempfile = "3.8.0"
+
+# 🚀 PERFORMANCE OPTIMIZATION PROFILES
+[profile.release]
+# Maximum optimization for production builds
+opt-level = 3              # Maximum optimization
+debug = false              # No debug info (smaller binary)
+strip = true               # Strip symbols (even smaller binary)
+lto = "fat"               # Link-time optimization (slower build, faster runtime)
+codegen-units = 1         # Single codegen unit (better optimization)
+panic = "abort"           # Abort on panic (slightly faster)
+overflow-checks = false   # Disable overflow checks (faster math)
+
+[profile.dev]
+# Faster development builds
+opt-level = 1             # Some optimization for dev builds
+debug = true              # Keep debug info
+incremental = true        # Faster incremental builds
+split-debuginfo = "unpacked"  # Better debug experience on macOS
