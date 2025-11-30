@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  media_core_app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: media_core_app
+    restart: always
+    volumes:
+      - ../../config.json:/app/config.json:ro
+      - ../../media:/app/media
+    environment:
+      - TZ=Asia/Taipei
