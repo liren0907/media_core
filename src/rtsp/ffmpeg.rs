@@ -7,6 +7,149 @@ use std::thread;
 use std::time::Duration;
 
 impl RTSPCapture {
+    /// Start HLS (HTTP Live Streaming) output
+    /// 
+    /// Spawns FFmpeg process to transcode RTSP stream to HLS format (.m3u8 + .ts segments).
+    /// Uses stream copy mode (no transcoding) for low latency and CPU usage.
+    /// 
+    /// # Returns
+    /// - `Ok(())` if FFmpeg process started successfully
+    /// - `Err` if HLS config is missing or FFmpeg spawn fails
+    pub fn start_hls_streaming(&mut self) -> std::io::Result<()> {
+        let hls_config = self.hls_config.as_ref()
+            .ok_or_else(|| std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "HLS config not provided"
+            ))?;
+
+        let output_dir = PathBuf::from(&hls_config.output_directory);
+        fs::create_dir_all(&output_dir)?;
+
+        let playlist_path = output_dir.join("playlist.m3u8");
+
+        let mut command = Command::new("ffmpeg");
+        command
+            .arg("-y")
+            .arg("-loglevel").arg("error")
+            .arg("-rtsp_transport").arg("tcp")
+            .arg("-i").arg(&self.url)
+            .arg("-c:v").arg("copy")
+            .arg("-c:a").arg("copy")
+            .arg("-f").arg("hls")
+            .arg("-hls_time").arg(hls_config.segment_duration.to_string())
+            .arg("-hls_list_size").arg(hls_config.playlist_size.to_string())
+            .arg("-hls_flags").arg("delete_segments");
+
+        // Add timeout for testing mode
+        if self.run_once {
+            let timeout = hls_config.segment_duration * 2 + 5; // Give enough time for at least one segment
+            command.arg("-t").arg(timeout.to_string());
+        }
+
+        command.arg(playlist_path.to_str().unwrap());
+
+        println!("🎬 Starting HLS streaming: {:?}", command);
+
+        let process = command
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+
+        self.ffmpeg_process = Some(process);
+        Ok(())
+    }
+
+    /// Monitor and maintain HLS streaming process
+    /// 
+    /// Similar to process_stream_ffmpeg() but for HLS mode.
+    /// Monitors the FFmpeg HLS process and restarts on failure.
+    pub fn process_stream_hls(&mut self) -> Result<()> {
+        let mut consecutive_failures = 0;
+        let max_failures = 3;
+
+        loop {
+            if self.ffmpeg_process.is_none() {
+                match self.start_hls_streaming() {
+                    Ok(_) => {
+                        println!("📺 Successfully started HLS streaming for {}", self.url);
+                        consecutive_failures = 0;
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Failed to start HLS streaming for {}: {}", self.url, e);
+                        consecutive_failures += 1;
+                        if consecutive_failures >= max_failures {
+                            if self.run_once {
+                                return Err(opencv::Error::new(
+                                    opencv::core::StsError,
+                                    "Failed to start HLS streaming in run_once mode",
+                                ));
+                            }
+                            thread::sleep(Duration::from_secs(10));
+                        } else {
+                            thread::sleep(Duration::from_secs(1));
+                        }
+                        continue;
+                    }
+                }
+            }
+
+            if let Some(process) = &mut self.ffmpeg_process {
+                match process.try_wait() {
+                    Ok(Some(status)) => {
+                        println!(
+                            "HLS process for {} ended with status: {}",
+                            self.url, status
+                        );
+                        if !status.success() {
+                            eprintln!("❌ HLS process failed for {}, restarting...", self.url);
+                            consecutive_failures += 1;
+                        } else if self.run_once {
+                            println!("✅ HLS process finished successfully in run_once mode.");
+                            return Ok(());
+                        }
+
+                        self.ffmpeg_process = None;
+
+                        if self.run_once && !status.success() {
+                            return Err(opencv::Error::new(
+                                opencv::core::StsError,
+                                "HLS process failed in run_once mode",
+                            ));
+                        }
+
+                        if consecutive_failures >= max_failures {
+                            thread::sleep(Duration::from_secs(10));
+                        } else {
+                            thread::sleep(Duration::from_secs(1));
+                        }
+                    }
+                    Ok(None) => {
+                        // Process still running
+                        consecutive_failures = 0;
+                        thread::sleep(Duration::from_secs(1));
+                    }
+                    Err(e) => {
+                        eprintln!("❌ Error checking HLS process for {}: {}", self.url, e);
+                        self.ffmpeg_process = None;
+                        consecutive_failures += 1;
+                        if self.run_once {
+                            return Err(opencv::Error::new(
+                                opencv::core::StsError,
+                                &format!("Error checking HLS process: {}", e),
+                            ));
+                        }
+                        if consecutive_failures >= max_failures {
+                            thread::sleep(Duration::from_secs(10));
+                        } else {
+                            thread::sleep(Duration::from_secs(1));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn start_ffmpeg_recording(&mut self) -> std::io::Result<()> {
         let camera_dir = PathBuf::from(&self.output_dir).join(format!(
             "camera_{}",

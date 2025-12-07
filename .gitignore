@@ -67,6 +67,8 @@ config/
 # Docs (ignore)
 docs/optimized_compilation
 docs/media_core
+docs/deprecated/
+docs/dev
 reference/
 references/
 
