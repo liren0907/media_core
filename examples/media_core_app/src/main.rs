@@ -30,6 +30,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         config.saved_time_duration,
         config.use_fps,
         config.fps,
+        None, // No HLS for this example
         true, // run_once: true for this example
     ) {
         Ok(mut capture) => {

@@ -1,6 +1,7 @@
 use opencv::{videoio, Result};
 use std::process::Child;
 use std::time::{Duration, Instant};
+use crate::rtsp::types::HLSConfig;
 
 pub struct RTSPCapture {
     pub url: String,
@@ -13,6 +14,7 @@ pub struct RTSPCapture {
     pub segment_duration: Duration,
     pub use_custom_fps: bool,
     pub custom_fps: f64,
+    pub hls_config: Option<HLSConfig>,
     pub run_once: bool,
 }
 
@@ -24,6 +26,7 @@ impl RTSPCapture {
         segment_duration_secs: u64,
         use_custom_fps: bool,
         custom_fps: f64,
+        hls_config: Option<HLSConfig>,
         run_once: bool,
     ) -> Result<Self> {
         Ok(Self {
@@ -37,15 +40,32 @@ impl RTSPCapture {
             segment_duration: Duration::from_secs(segment_duration_secs),
             use_custom_fps,
             custom_fps,
+            hls_config,
             run_once,
         })
     }
 
     pub fn process_stream(&mut self) -> Result<()> {
+        // Priority 1: Check HLS mode first
+        if let Some(ref config) = self.hls_config {
+            if config.enabled {
+                self.start_hls_streaming().map_err(|e| {
+                    opencv::Error::new(
+                        opencv::core::StsError,
+                        &format!("Failed to start HLS streaming: {}", e),
+                    )
+                })?;
+                return self.process_stream_hls();
+            }
+        }
+
+        // Priority 2: OpenCV mode with custom FPS
         if self.use_custom_fps {
             self.start_opencv_recording()?;
             self.process_stream_opencv()
-        } else {
+        } 
+        // Priority 3: FFmpeg mode (default)
+        else {
             self.start_ffmpeg_recording().map_err(|e| {
                 opencv::Error::new(
                     opencv::core::StsError,

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum SavingOption {
     Single,
@@ -9,8 +9,29 @@ pub enum SavingOption {
     Both,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct CaptureConfig {
+/// HLS (HTTP Live Streaming) configuration
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct HLSConfig {
+    pub enabled: bool,
+    pub output_directory: String,
+    pub segment_duration: u32,
+    pub playlist_size: u32,
+}
+
+impl Default for HLSConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            output_directory: "hls_output".to_string(),
+            segment_duration: 10,
+            playlist_size: 5,
+        }
+    }
+}
+
+/// Main RTSP stream configuration
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct StreamConfig {
     pub rtsp_url: String,
     pub rtsp_url_list: Vec<String>,
     pub output_directory: String,
@@ -19,9 +40,10 @@ pub struct CaptureConfig {
     pub saved_time_duration: u64,
     pub use_fps: bool,
     pub fps: f64,
+    pub hls: HLSConfig,
 }
 
-impl Default for CaptureConfig {
+impl Default for StreamConfig {
     fn default() -> Self {
         Self {
             rtsp_url: "rtsp://username:password@camera-ip:port/stream".to_string(),
@@ -35,6 +57,10 @@ impl Default for CaptureConfig {
             saved_time_duration: 300,
             use_fps: false,
             fps: 30.0,
+            hls: HLSConfig::default(),
         }
     }
 }
+
+/// Backward compatibility alias
+pub type CaptureConfig = StreamConfig;

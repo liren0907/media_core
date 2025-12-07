@@ -86,6 +86,7 @@ pub fn run_rtsp_mode() -> Result<(), Box<dyn Error>> {
         let segment_duration = config.saved_time_duration;
         let use_fps = config.use_fps;
         let fps = config.fps;
+        let hls_config = Some(config.hls.clone());
 
         let handle = thread::spawn(move || {
             match RTSPCapture::new(
@@ -95,7 +96,8 @@ pub fn run_rtsp_mode() -> Result<(), Box<dyn Error>> {
                 segment_duration,
                 use_fps,
                 fps,
-                false, // run_once
+                hls_config,
+                false, // run_once: false for production use
             ) {
                 Ok(mut capture) => {
                     println!("📹 Processing stream: {}", url);

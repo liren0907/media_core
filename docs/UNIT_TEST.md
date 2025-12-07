@@ -1,7 +1,5 @@
 # Unit Tests
 
-This document outlines the unit and integration tests available in the project.
-
 ## Table of Contents
 
 - [Config Generation Tests](#config-generation-tests)
@@ -11,23 +9,14 @@ This document outlines the unit and integration tests available in the project.
 
 ## Config Generation Tests
 
-### Overview
-These tests verify that the application can correctly generate default configuration files for both RTSP capture and Video Processing modes.
+**File**: `tests/test_config_generation.rs`
 
-### Test File
-`tests/test_config_generation.rs`
+### Tests
 
-### Tests Included
-1.  **`test_rtsp_config_generation`**:
-    -   Generates a default `config.json`.
-    -   Verifies the file exists.
-    -   Deserializes the content to ensure it matches the `CaptureConfig` structure.
-2.  **`test_process_config_generation`**:
-    -   Generates a default `process_config.json`.
-    -   Verifies the file exists.
-    -   Deserializes the content to ensure it matches the `ProcessConfig` structure.
+1. **`test_rtsp_config_generation`** - Generates and validates default RTSP config
+2. **`test_process_config_generation`** - Generates and validates default process config
 
-### Running the Tests
+### Run
 ```bash
 cargo test --test test_config_generation
 ```
@@ -36,30 +25,52 @@ cargo test --test test_config_generation
 
 ## RTSP Stream Extraction Tests
 
-### Overview
-A single unit test `test_rtsp_stream_extraction` verifies that the RTSP stream extractor can connect, record a segment, and exit cleanly.
+**File**: `tests/test_rtsp_extraction.rs`
 
-### Test File
-`tests/test_rtsp_extraction.rs`
+### Tests
+
+1. **`test_rtsp_stream_extraction`** - FFmpeg mode (records `.mp4` to `output/`)
+2. **`test_hls_streaming`** - HLS mode (generates `.m3u8` + `.ts` to `hls_test_output/`)
 
 ### Prerequisites
-1.  **MediaMTX Server**: Must be running.
-2.  **RTSP Stream**: A stream must be active at `rtsp://localhost:8554/mystream`.
+- FFmpeg installed
 
-### Running the Test
+**Note**: Tests work without a real RTSP server (uses `run_once` timeout).
+
+### Run All RTSP Tests
 ```bash
-cargo test test_rtsp_stream_extraction -- --nocapture
+cargo test --test test_rtsp_extraction -- --nocapture
 ```
 
-### What it Does
-1.  Connects to `rtsp://localhost:8554/mystream`.
-2.  Records video segments to the `output/` directory.
-3.  Runs in **single-run mode** (stops after ~30 seconds).
-4.  Verifies:
-    *   Output directory creation.
-    *   Video file existence (`.mp4`).
-    *   Correct filename format.
+### Run Individual Tests
+```bash
+# FFmpeg mode
+cargo test test_rtsp_stream_extraction -- --nocapture
+
+# HLS mode
+cargo test test_hls_streaming -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Mode | Output | Duration |
+|------|------|--------|----------|
+| `test_rtsp_stream_extraction` | FFmpeg | `output/camera_*/*.mp4` | ~36s |
+| `test_hls_streaming` | HLS | `hls_test_output/*.m3u8, *.ts` | ~10s |
 
 ### Troubleshooting
-*   **Permission Denied**: Ensure `run_mtx_server.sh` and `run_rtsp-streaming.sh` are executable.
-*   **FFmpeg Error**: Ensure FFmpeg is installed and accessible.
+
+**FFmpeg not found**: Install FFmpeg
+```bash
+brew install ffmpeg  # macOS
+sudo apt-get install ffmpeg  # Ubuntu
+```
+
+**With real RTSP server** (optional):
+```bash
+cd data/rtsp
+./run_mtx_server.sh              # Terminal 1
+./run_rtsp-streaming.sh          # Terminal 2
+cargo test --test test_rtsp_extraction -- --nocapture  # Terminal 3
+```
+
