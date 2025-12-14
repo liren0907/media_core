@@ -1,29 +1,34 @@
+use media_core::hls::{HLSConverter, HLSVodConfig};
 use media_core::process::create_video_processor;
 use media_core::{CaptureConfig, RTSPCapture, SavingOption};
 use serde_json;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
+use std::path::PathBuf;
 use std::thread;
 
 pub fn print_usage() {
-    println!("Media Core - RTSP Stream Extractor");
+    println!("Media Core - RTSP Stream Extractor & Video Processor");
     println!();
     println!("USAGE:");
     println!("    cargo run <MODE> [OPTIONS]");
     println!();
     println!("MODES:");
-    println!("    rtsp                    Run RTSP stream capture mode");
-    println!("    process <config_file>   Run video processing mode");
-    println!("    config <subcommand>     Generate configuration files (e.g., 'rtsp')");
-    println!("    help                    Show this help message");
+    println!("    rtsp                              Run RTSP stream capture mode");
+    println!("    process <config_file>             Run video processing mode");
+    println!("    hls <input_file> <output_dir>     Convert video to HLS VOD format");
+    println!("    hls --config <config_file>        Convert using JSON config file");
+    println!("    config <subcommand>               Generate configuration files");
+    println!("    help                              Show this help message");
     println!();
     println!("EXAMPLES:");
     println!(
         "    cargo run rtsp                           # Capture RTSP streams using config.json"
     );
     println!("    cargo run process video_config.json     # Process videos using video config");
-    println!("    cargo run process video_config.json     # Process videos using video config");
+    println!("    cargo run hls video.mp4 hls_output/     # Convert MP4 to HLS");
+    println!("    cargo run hls --config hls_config.json  # Convert using config file");
     println!("    cargo run config rtsp                    # Generate default RTSP config");
     println!("    cargo run help                           # Show help");
 }
@@ -41,6 +46,14 @@ pub fn run_config_mode(subcommand: &str) -> Result<(), Box<dyn Error>> {
             println!("⚙️  Generating default Video Processing configuration...");
             media_core::process::generate_default_config("process_config.json")?;
             println!("✅ Generated 'process_config.json' successfully!");
+            Ok(())
+        }
+        "hls" => {
+            println!("⚙️  Generating default HLS VOD configuration...");
+            let default_config = HLSVodConfig::default();
+            let json = serde_json::to_string_pretty(&default_config)?;
+            std::fs::write("hls_config.json", json)?;
+            println!("✅ Generated 'hls_config.json' successfully!");
             Ok(())
         }
         _ => {
@@ -153,6 +166,57 @@ pub fn run_process_mode(config_path: &str) -> Result<(), Box<dyn Error>> {
         Err(e) => {
             eprintln!("❌ Video processing failed: {}", e);
             return Err(Box::new(e));
+        }
+    }
+
+    Ok(())
+}
+
+/// Run HLS VOD conversion mode
+pub fn run_hls_mode(args: &[String]) -> Result<(), Box<dyn Error>> {
+    println!("🎬 Starting HLS VOD Conversion Mode...");
+
+    if args.is_empty() {
+        eprintln!("❌ Error: Missing arguments for HLS mode");
+        println!();
+        println!("Usage:");
+        println!("    cargo run hls <input_file> <output_dir>");
+        println!("    cargo run hls --config <config_file>");
+        return Ok(());
+    }
+
+    let config = if args[0] == "--config" {
+        // Load from config file
+        if args.len() < 2 {
+            eprintln!("❌ Error: Missing config file path");
+            return Ok(());
+        }
+        println!("📄 Loading config from: {}", args[1]);
+        HLSVodConfig::from_file(&args[1])?
+    } else {
+        // Direct arguments: <input_file> <output_dir>
+        if args.len() < 2 {
+            eprintln!("❌ Error: Missing output directory");
+            println!("Usage: cargo run hls <input_file> <output_dir>");
+            return Ok(());
+        }
+        let input_path = PathBuf::from(&args[0]);
+        let output_dir = PathBuf::from(&args[1]);
+        HLSVodConfig::new(input_path, output_dir)
+    };
+
+    println!("📥 Input: {}", config.input_path.display());
+    println!("📤 Output: {}", config.output_dir.display());
+    println!("⏱️  Segment Duration: {}s", config.segment_duration);
+
+    let converter = HLSConverter::new(config);
+    match converter.convert() {
+        Ok(()) => {
+            println!("✅ HLS conversion completed successfully!");
+        }
+        Err(e) => {
+            eprintln!("❌ HLS conversion failed: {}", e);
+            return Err(e.into());
         }
     }
 
