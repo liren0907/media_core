@@ -24,9 +24,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         "hls" => {
             cli::run_hls_mode(&args[2..])?;
         }
+        "analysis" => {
+            cli::run_analysis_mode(&args[2..])?;
+        }
         "config" => {
             if args.len() < 3 {
-                println!("Error: Config mode requires a subcommand (e.g., 'rtsp', 'hls')");
+                println!(
+                    "Error: Config mode requires a subcommand (e.g., 'rtsp', 'hls', 'analysis')"
+                );
                 println!("Usage: cargo run config <subcommand>");
                 return Ok(());
             }

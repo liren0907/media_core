@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod hls;
 pub mod process;
 pub mod rtsp;

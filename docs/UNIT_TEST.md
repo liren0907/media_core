@@ -4,6 +4,7 @@
 
 - [Config Generation Tests](#config-generation-tests)
 - [RTSP Stream Extraction Tests](#rtsp-stream-extraction-tests)
+- [HLS Conversion Tests](#hls-conversion-tests)
 
 ---
 
@@ -74,3 +75,29 @@ cd data/rtsp
 cargo test --test test_rtsp_extraction -- --nocapture  # Terminal 3
 ```
 
+---
+
+## HLS Conversion Tests
+
+**File**: `tests/test_hls_conversion.rs`
+
+### Tests
+
+1. **`test_hls_config_generation`** - Validates HLS config defaults and JSON serialization
+2. **`test_hls_conversion`** - Converts `data/test.mp4` to HLS format
+
+### Prerequisites
+- FFmpeg installed
+- Test video at `data/test.mp4`
+
+### Run
+```bash
+cargo test --test test_hls_conversion -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Output | Duration |
+|------|--------|----------|
+| `test_hls_config_generation` | None | <1s |
+| `test_hls_conversion` | `hls_test_output/*.m3u8, *.ts` | ~5s |
