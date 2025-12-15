@@ -1,26 +1,26 @@
 //! Video processing functionality for the process module
 
-use std::path::{Path, PathBuf};
-use std::fs;
-use std::process::Command;
-use std::io::Write;
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::collections::HashMap;
-use std::time::Instant;
 use opencv::{
-    core::{Size, Mat, Vector},
+    core::{Mat, Size, Vector},
     imgcodecs,
     prelude::*,
     videoio,
 };
 use path_clean::PathClean;
 use rayon::prelude::*;
+use std::collections::HashMap;
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Instant;
 
-use crate::process::types::ProcessError;
+use super::hw_accel::HardwareAcceleratedCapture;
 use crate::process::config::VideoExtractionConfig;
 use crate::process::stats::ProcessingStats;
-use super::hw_accel::HardwareAcceleratedCapture;
+use crate::process::types::ProcessError;
 
 /// Video processing functionality
 pub struct VideoProcessor;
@@ -33,43 +33,96 @@ impl VideoProcessor {
     ) -> Result<(), ProcessError> {
         let start_time = Instant::now();
 
-        let config_data = fs::read_to_string(config_path)
-            .map_err(|e| ProcessError::IoError(format!("Unable to read config file {}: {}", config_path, e)))?;
+        let config_data = fs::read_to_string(config_path).map_err(|e| {
+            ProcessError::IoError(format!("Unable to read config file {}: {}", config_path, e))
+        })?;
 
-        let deserializer = &mut serde_json::Deserializer::from_str(&config_data);
-        let video_config: VideoExtractionConfig = serde_path_to_error::deserialize(deserializer)
-            .map_err(|e| ProcessError::ConfigurationError(format!("Error parsing config.json at '{}': {}", e.path(), e)))?;
+        // Try to parse as ProcessConfig first
+        let video_config = match serde_json::from_str::<crate::process::config::ProcessConfig>(
+            &config_data,
+        ) {
+            Ok(process_config) => {
+                if let Some(vc) = process_config.video_config {
+                    vc
+                } else {
+                    return Err(ProcessError::ConfigurationError(
+                        "Config file is a valid ProcessConfig but missing 'video_config' field."
+                            .to_string(),
+                    ));
+                }
+            }
+            Err(_) => {
+                // Fallback: Try to parse as VideoExtractionConfig directly
+                let deserializer = &mut serde_json::Deserializer::from_str(&config_data);
+                serde_path_to_error::deserialize(deserializer).map_err(|e| {
+                    ProcessError::ConfigurationError(format!(
+                        "Error parsing config.json at '{}': {}",
+                        e.path(),
+                        e
+                    ))
+                })?
+            }
+        };
 
         let config = Arc::new(video_config);
         let temp_dirs_created = Arc::new(Mutex::new(Vec::<PathBuf>::new()));
 
         let mut video_files_by_dir: HashMap<String, Vec<PathBuf>> = HashMap::new();
         for dir_path_str in &config.input_directories {
-            let dir_path = Path::new(dir_path_str);
-            if !dir_path.is_dir() {
-                eprintln!(
-                    "Warning: Input path is not a directory, skipping: {}",
-                    dir_path.display()
-                );
-                continue;
-            }
+            for dir_path_str in &config.input_directories {
+                let path = Path::new(dir_path_str);
 
-            let video_files: Vec<PathBuf> = fs::read_dir(dir_path)
-                .map_err(|e| ProcessError::IoError(format!("Failed to read directory {}: {}", dir_path.display(), e)))?
-                .filter_map(|entry| entry.ok())
-                .filter(|entry| {
-                    let path = entry.path();
-                    path.is_file()
-                        && matches!(
-                            path.extension().and_then(|s| s.to_str()),
-                            Some("mp4" | "mov" | "avi" | "mkv")
-                        )
-                })
-                .map(|entry| entry.path().clean())
-                .collect();
+                if path.is_file() {
+                    // Handle single file input
+                    if matches!(
+                        path.extension().and_then(|s| s.to_str()),
+                        Some("mp4" | "mov" | "avi" | "mkv")
+                    ) {
+                        let parent = path.parent().unwrap_or_else(|| Path::new("."));
+                        let parent_str = parent.to_string_lossy().to_string();
 
-            if !video_files.is_empty() {
-                video_files_by_dir.insert(dir_path_str.to_string(), video_files);
+                        video_files_by_dir
+                            .entry(parent_str)
+                            .or_insert_with(Vec::new)
+                            .push(path.clean());
+                    } else {
+                        eprintln!(
+                            "Warning: Input file {} is not a supported video format",
+                            path.display()
+                        );
+                    }
+                } else if path.is_dir() {
+                    // Handle directory input
+                    let dir_path = path;
+                    let video_files: Vec<PathBuf> = fs::read_dir(dir_path)
+                        .map_err(|e| {
+                            ProcessError::IoError(format!(
+                                "Failed to read directory {}: {}",
+                                dir_path.display(),
+                                e
+                            ))
+                        })?
+                        .filter_map(|entry| entry.ok())
+                        .filter(|entry| {
+                            let path = entry.path();
+                            path.is_file()
+                                && matches!(
+                                    path.extension().and_then(|s| s.to_str()),
+                                    Some("mp4" | "mov" | "avi" | "mkv")
+                                )
+                        })
+                        .map(|entry| entry.path().clean())
+                        .collect();
+
+                    if !video_files.is_empty() {
+                        video_files_by_dir.insert(dir_path_str.to_string(), video_files);
+                    }
+                } else {
+                    eprintln!(
+                        "Warning: Input path does not exist or is inaccessible: {}",
+                        path.display()
+                    );
+                }
             }
         }
 
@@ -96,7 +149,12 @@ impl VideoProcessor {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(num_threads)
                     .build_global()
-                    .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to build thread pool: {}", e)))?;
+                    .map_err(|e| {
+                        ProcessError::ProcessingFailed(format!(
+                            "Failed to build thread pool: {}",
+                            e
+                        ))
+                    })?;
 
                 video_files_by_dir
                     .into_par_iter()
@@ -152,19 +210,27 @@ impl VideoProcessor {
         );
 
         let output_base = PathBuf::from(&config.output_directory);
-        fs::create_dir_all(&output_base)
-            .map_err(|e| ProcessError::IoError(format!("Failed to create output directory: {}", e)))?;
+        fs::create_dir_all(&output_base).map_err(|e| {
+            ProcessError::IoError(format!("Failed to create output directory: {}", e))
+        })?;
 
         let output_video_file = format!("{}_{}.mp4", config.output_prefix, dir_tag);
         let output_video_path = output_base.join(output_video_file);
 
         // Determine modes
-        let creation_mode = config.video_creation_mode.as_deref().unwrap_or("temp_frames");
+        let creation_mode = config
+            .video_creation_mode
+            .as_deref()
+            .unwrap_or("temp_frames");
         let use_ffmpeg_extraction = config.extraction_mode == "ffmpeg";
 
         println!(
             "Processing with: Extraction = {}, Creation = {}",
-            if use_ffmpeg_extraction { "ffmpeg" } else { "opencv" },
+            if use_ffmpeg_extraction {
+                "ffmpeg"
+            } else {
+                "opencv"
+            },
             creation_mode
         );
 
@@ -175,9 +241,25 @@ impl VideoProcessor {
         if creation_mode == "direct" && config.extraction_mode == "opencv" {
             Self::process_direct_opencv(&sorted_video_list, &output_video_path, &config)
         } else if creation_mode == "direct" && use_ffmpeg_extraction {
-            Self::process_direct_ffmpeg(&sorted_video_list, &output_video_path, &config, &output_base, &dir_tag, temp_dirs_created)
+            Self::process_direct_ffmpeg(
+                &sorted_video_list,
+                &output_video_path,
+                &config,
+                &output_base,
+                &dir_tag,
+                temp_dirs_created,
+            )
+        } else if creation_mode == "skip" || creation_mode == "none" {
+            Self::process_extraction_only(&sorted_video_list, &config, &output_base, &dir_tag)
         } else {
-            Self::process_temp_frames(&sorted_video_list, &output_video_path, &config, &output_base, &dir_tag, temp_dirs_created)
+            Self::process_temp_frames(
+                &sorted_video_list,
+                &output_video_path,
+                &config,
+                &output_base,
+                &dir_tag,
+                temp_dirs_created,
+            )
         }
     }
 
@@ -212,7 +294,7 @@ impl VideoProcessor {
 
             let mut cap = match HardwareAcceleratedCapture::create_capture(
                 video_path.to_str().unwrap(),
-                &config.hardware_acceleration
+                &config.hardware_acceleration,
             ) {
                 Ok(cap) => cap,
                 Err(e) => {
@@ -225,7 +307,10 @@ impl VideoProcessor {
                 }
             };
 
-            if !cap.is_opened().map_err(|e| ProcessError::ProcessingFailed(format!("OpenCV error: {}", e)))? {
+            if !cap
+                .is_opened()
+                .map_err(|e| ProcessError::ProcessingFailed(format!("OpenCV error: {}", e)))?
+            {
                 eprintln!(
                     "Warning: OpenCV failed to open video {}, skipping.",
                     video_path.display()
@@ -235,27 +320,42 @@ impl VideoProcessor {
 
             // Initialize writer from first valid video
             if output_writer.is_none() {
-                let width = cap.get(videoio::CAP_PROP_FRAME_WIDTH)
-                    .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to get frame width: {}", e)))? as i32;
-                let height = cap.get(videoio::CAP_PROP_FRAME_HEIGHT)
-                    .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to get frame height: {}", e)))? as i32;
+                let width = cap.get(videoio::CAP_PROP_FRAME_WIDTH).map_err(|e| {
+                    ProcessError::ProcessingFailed(format!("Failed to get frame width: {}", e))
+                })? as i32;
+                let height = cap.get(videoio::CAP_PROP_FRAME_HEIGHT).map_err(|e| {
+                    ProcessError::ProcessingFailed(format!("Failed to get frame height: {}", e))
+                })? as i32;
 
                 if width > 0 && height > 0 {
                     let size = Size::new(width, height);
-                    println!("Determined output frame size {:?} from video {}", size, video_path.display());
+                    println!(
+                        "Determined output frame size {:?} from video {}",
+                        size,
+                        video_path.display()
+                    );
                     output_frame_size = Some(size);
 
-                    let fourcc = videoio::VideoWriter::fourcc('a', 'v', 'c', '1')
-                        .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to create fourcc: {}", e)))?;
+                    let fourcc = videoio::VideoWriter::fourcc('a', 'v', 'c', '1').map_err(|e| {
+                        ProcessError::ProcessingFailed(format!("Failed to create fourcc: {}", e))
+                    })?;
                     let writer = videoio::VideoWriter::new(
                         output_video_path.to_str().unwrap(),
                         fourcc,
                         config.output_fps as f64,
                         size,
                         true,
-                    ).map_err(|e| ProcessError::ProcessingFailed(format!("Failed to create VideoWriter: {}", e)))?;
+                    )
+                    .map_err(|e| {
+                        ProcessError::ProcessingFailed(format!(
+                            "Failed to create VideoWriter: {}",
+                            e
+                        ))
+                    })?;
 
-                    if !writer.is_opened().map_err(|e| ProcessError::ProcessingFailed(format!("VideoWriter error: {}", e)))? {
+                    if !writer.is_opened().map_err(|e| {
+                        ProcessError::ProcessingFailed(format!("VideoWriter error: {}", e))
+                    })? {
                         return Err(ProcessError::ProcessingFailed(format!(
                             "Failed to open VideoWriter for output file {}",
                             output_video_path.display()
@@ -275,13 +375,18 @@ impl VideoProcessor {
             // Process frames
             if let Some(ref mut writer) = output_writer {
                 let expected_size = output_frame_size.unwrap();
-                let total_frames_cv = cap.get(videoio::CAP_PROP_FRAME_COUNT)
-                    .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to get frame count: {}", e)))? as usize;
+                let total_frames_cv = cap.get(videoio::CAP_PROP_FRAME_COUNT).map_err(|e| {
+                    ProcessError::ProcessingFailed(format!("Failed to get frame count: {}", e))
+                })? as usize;
 
                 for frame_number in (0..total_frames_cv).step_by(config.frame_interval) {
                     let mut frame = Mat::default();
-                    if !cap.set(videoio::CAP_PROP_POS_FRAMES, frame_number as f64)
-                        .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to seek frame: {}", e)))? {
+                    if !cap
+                        .set(videoio::CAP_PROP_POS_FRAMES, frame_number as f64)
+                        .map_err(|e| {
+                            ProcessError::ProcessingFailed(format!("Failed to seek frame: {}", e))
+                        })?
+                    {
                         eprintln!(
                             "Warning: OpenCV failed to seek to frame {} in {}. Skipping frame.",
                             frame_number,
@@ -290,8 +395,9 @@ impl VideoProcessor {
                         continue;
                     }
 
-                    if cap.read(&mut frame)
-                        .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to read frame: {}", e)))? {
+                    if cap.read(&mut frame).map_err(|e| {
+                        ProcessError::ProcessingFailed(format!("Failed to read frame: {}", e))
+                    })? {
                         if frame.empty() {
                             eprintln!(
                                 "Warning: OpenCV read empty frame at index {} from {}. Skipping frame.",
@@ -302,7 +408,13 @@ impl VideoProcessor {
                         }
 
                         // Check frame size
-                        if frame.size().map_err(|e| ProcessError::ProcessingFailed(format!("Failed to get frame size: {}", e)))? != expected_size {
+                        if frame.size().map_err(|e| {
+                            ProcessError::ProcessingFailed(format!(
+                                "Failed to get frame size: {}",
+                                e
+                            ))
+                        })? != expected_size
+                        {
                             eprintln!(
                                 "Warning: Frame {} size does not match writer size in video {}. Skipping frame.",
                                 frame_number,
@@ -320,7 +432,10 @@ impl VideoProcessor {
                                 e
                             );
                             let _ = writer.release();
-                            return Err(ProcessError::ProcessingFailed(format!("VideoWriter write error: {}", e)));
+                            return Err(ProcessError::ProcessingFailed(format!(
+                                "VideoWriter write error: {}",
+                                e
+                            )));
                         }
                     } else {
                         println!(
@@ -337,11 +452,19 @@ impl VideoProcessor {
         // Release writer
         if let Some(mut writer) = output_writer {
             println!("Releasing VideoWriter for {}", output_video_path.display());
-            writer.release().map_err(|e| ProcessError::ProcessingFailed(format!("Failed to release writer: {}", e)))?;
+            writer.release().map_err(|e| {
+                ProcessError::ProcessingFailed(format!("Failed to release writer: {}", e))
+            })?;
             if videos_processed_count > 0 {
-                println!("Successfully created video (direct/opencv): {}", output_video_path.display());
+                println!(
+                    "Successfully created video (direct/opencv): {}",
+                    output_video_path.display()
+                );
             } else {
-                println!("No videos successfully processed to create output file {}", output_video_path.display());
+                println!(
+                    "No videos successfully processed to create output file {}",
+                    output_video_path.display()
+                );
                 let _ = fs::remove_file(&output_video_path);
             }
         } else {
@@ -361,14 +484,23 @@ impl VideoProcessor {
         temp_dirs_created: Arc<Mutex<Vec<PathBuf>>>,
     ) -> Result<(), ProcessError> {
         println!("Using ffmpeg extraction with direct creation.");
-        
+
         // Create temp directory
-        let dir_name = format!("{}_{}_ffmpeg_direct_temp_{:?}", config.output_prefix, dir_tag, thread::current().id());
+        let dir_name = format!(
+            "{}_{}_ffmpeg_direct_temp_{:?}",
+            config.output_prefix,
+            dir_tag,
+            thread::current().id()
+        );
         let temp_path = output_base.join(dir_name);
-        fs::create_dir_all(&temp_path)
-            .map_err(|e| ProcessError::IoError(format!("Failed to create temp directory: {}", e)))?;
+        fs::create_dir_all(&temp_path).map_err(|e| {
+            ProcessError::IoError(format!("Failed to create temp directory: {}", e))
+        })?;
         temp_dirs_created.lock().unwrap().push(temp_path.clone());
-        println!("Created transient temp directory for ffmpeg: {}", temp_path.display());
+        println!(
+            "Created transient temp directory for ffmpeg: {}",
+            temp_path.display()
+        );
 
         // Extract frames using FFmpeg
         for (video_index, video_path) in video_list.iter().enumerate() {
@@ -379,7 +511,7 @@ impl VideoProcessor {
                 video_list.len(),
                 video_path.display()
             );
-            
+
             Self::extract_frames_ffmpeg(
                 video_path.to_str().unwrap(),
                 video_index,
@@ -389,7 +521,11 @@ impl VideoProcessor {
         }
 
         // Create video from extracted frames
-        Self::create_video_from_temp_frames(temp_path.to_str().unwrap(), output_video_path, config.output_fps)
+        Self::create_video_from_temp_frames(
+            temp_path.to_str().unwrap(),
+            output_video_path,
+            config.output_fps,
+        )
     }
 
     /// Process using temp frames method
@@ -402,12 +538,18 @@ impl VideoProcessor {
         temp_dirs_created: Arc<Mutex<Vec<PathBuf>>>,
     ) -> Result<(), ProcessError> {
         println!("Using temp frames approach.");
-        
+
         // Create temp directory
-        let dir_name = format!("{}_{}_temp_{:?}", config.output_prefix, dir_tag, thread::current().id());
+        let dir_name = format!(
+            "{}_{}_temp_{:?}",
+            config.output_prefix,
+            dir_tag,
+            thread::current().id()
+        );
         let temp_path = output_base.join(dir_name);
-        fs::create_dir_all(&temp_path)
-            .map_err(|e| ProcessError::IoError(format!("Failed to create temp directory: {}", e)))?;
+        fs::create_dir_all(&temp_path).map_err(|e| {
+            ProcessError::IoError(format!("Failed to create temp directory: {}", e))
+        })?;
         temp_dirs_created.lock().unwrap().push(temp_path.clone());
 
         // Extract frames
@@ -431,7 +573,11 @@ impl VideoProcessor {
         }
 
         // Create video from frames
-        Self::create_video_from_temp_frames(temp_path.to_str().unwrap(), output_video_path, config.output_fps)
+        Self::create_video_from_temp_frames(
+            temp_path.to_str().unwrap(),
+            output_video_path,
+            config.output_fps,
+        )
     }
 
     /// Extract frames using OpenCV (matching extraction/video.rs::extract_frames_opencv)
@@ -442,42 +588,64 @@ impl VideoProcessor {
         frame_interval: usize,
         hw_config: &super::hw_accel::HardwareAccelConfig,
     ) -> Result<(), ProcessError> {
-        fs::create_dir_all(temp_frame_dir)
-            .map_err(|e| ProcessError::IoError(format!("Failed to create temp frame directory: {}", e)))?;
+        fs::create_dir_all(temp_frame_dir).map_err(|e| {
+            ProcessError::IoError(format!("Failed to create temp frame directory: {}", e))
+        })?;
 
         let mut cap = HardwareAcceleratedCapture::create_capture(video_filename, hw_config)
-            .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to open video {}: {}", video_filename, e)))?;
+            .map_err(|e| {
+                ProcessError::ProcessingFailed(format!(
+                    "Failed to open video {}: {}",
+                    video_filename, e
+                ))
+            })?;
 
-        if !cap.is_opened()
-            .map_err(|e| ProcessError::ProcessingFailed(format!("OpenCV error: {}", e)))? {
-            return Err(ProcessError::ProcessingFailed(format!("Failed to open video: {}", video_filename)));
+        if !cap
+            .is_opened()
+            .map_err(|e| ProcessError::ProcessingFailed(format!("OpenCV error: {}", e)))?
+        {
+            return Err(ProcessError::ProcessingFailed(format!(
+                "Failed to open video: {}",
+                video_filename
+            )));
         }
 
-        let total_frames = cap.get(videoio::CAP_PROP_FRAME_COUNT)
-            .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to get frame count: {}", e)))? as usize;
+        let total_frames = cap.get(videoio::CAP_PROP_FRAME_COUNT).map_err(|e| {
+            ProcessError::ProcessingFailed(format!("Failed to get frame count: {}", e))
+        })? as usize;
 
         for frame_number in (0..total_frames).step_by(frame_interval) {
             let mut frame = Mat::default();
-            if !cap.set(videoio::CAP_PROP_POS_FRAMES, frame_number as f64)
-                .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to seek frame: {}", e)))? {
-                eprintln!("Warning: Failed to seek to frame {} in {}", frame_number, video_filename);
+            if !cap
+                .set(videoio::CAP_PROP_POS_FRAMES, frame_number as f64)
+                .map_err(|e| {
+                    ProcessError::ProcessingFailed(format!("Failed to seek frame: {}", e))
+                })?
+            {
+                eprintln!(
+                    "Warning: Failed to seek to frame {} in {}",
+                    frame_number, video_filename
+                );
                 continue;
             }
 
-            if cap.read(&mut frame)
-                .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to read frame: {}", e)))? {
+            if cap.read(&mut frame).map_err(|e| {
+                ProcessError::ProcessingFailed(format!("Failed to read frame: {}", e))
+            })? {
                 if frame.empty() {
-                    eprintln!("Warning: Read empty frame at index {} from {}", frame_number, video_filename);
+                    eprintln!(
+                        "Warning: Read empty frame at index {} from {}",
+                        frame_number, video_filename
+                    );
                     continue;
                 }
                 let output_path = format!(
                     "{}/video{:03}_frame{:07}.jpg",
-                    temp_frame_dir,
-                    video_index,
-                    frame_number
+                    temp_frame_dir, video_index, frame_number
                 );
-                imgcodecs::imwrite(&output_path, &frame, &Vector::new())
-                    .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to write frame: {}", e)))?;
+                imgcodecs::imwrite(&output_path, &frame, &Vector::new()).map_err(|e| {
+                    ProcessError::ProcessingFailed(format!("Failed to write frame: {}", e))
+                })?;
             } else {
                 break;
             }
@@ -492,17 +660,21 @@ impl VideoProcessor {
         temp_frame_dir: &str,
         frame_interval: usize,
     ) -> Result<(), ProcessError> {
-        fs::create_dir_all(temp_frame_dir)
-            .map_err(|e| ProcessError::IoError(format!("Failed to create temp frame directory: {}", e)))?;
+        fs::create_dir_all(temp_frame_dir).map_err(|e| {
+            ProcessError::IoError(format!("Failed to create temp frame directory: {}", e))
+        })?;
 
         if frame_interval == 0 {
-            return Err(ProcessError::ValidationError("frame_interval must be greater than 0 for ffmpeg extraction.".to_string()));
+            return Err(ProcessError::ValidationError(
+                "frame_interval must be greater than 0 for ffmpeg extraction.".to_string(),
+            ));
         }
 
-        let output_pattern = Path::new(temp_frame_dir)
-            .join(format!("video{}_frame%06d.jpg", video_index));
-        let output_pattern_str = output_pattern.to_str()
-            .ok_or_else(|| ProcessError::ProcessingFailed("Invalid output path pattern".to_string()))?;
+        let output_pattern =
+            Path::new(temp_frame_dir).join(format!("video{}_frame%06d.jpg", video_index));
+        let output_pattern_str = output_pattern.to_str().ok_or_else(|| {
+            ProcessError::ProcessingFailed("Invalid output path pattern".to_string())
+        })?;
 
         let mut cmd = Command::new("ffmpeg");
         cmd.arg("-i")
@@ -520,12 +692,12 @@ impl VideoProcessor {
 
         println!(
             "Running ffmpeg frame extraction for video {}: {}",
-            video_index,
-            video_filename
+            video_index, video_filename
         );
 
-        let output = cmd.output()
-            .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to execute ffmpeg: {}", e)))?;
+        let output = cmd.output().map_err(|e| {
+            ProcessError::ProcessingFailed(format!("Failed to execute ffmpeg: {}", e))
+        })?;
 
         if !output.status.success() {
             eprintln!("ffmpeg stdout: {}", String::from_utf8_lossy(&output.stdout));
@@ -538,8 +710,7 @@ impl VideoProcessor {
 
         println!(
             "Successfully extracted frames using ffmpeg for video {}: {}",
-            video_index,
-            video_filename
+            video_index, video_filename
         );
         Ok(())
     }
@@ -553,11 +724,15 @@ impl VideoProcessor {
         let frame_source_dir = Path::new(temp_frame_dir);
         let final_output_dir = output_video_path.parent().unwrap_or_else(|| Path::new("."));
 
-        fs::create_dir_all(final_output_dir)
-            .map_err(|e| ProcessError::IoError(format!("Failed to create output directory: {}", e)))?;
+        fs::create_dir_all(final_output_dir).map_err(|e| {
+            ProcessError::IoError(format!("Failed to create output directory: {}", e))
+        })?;
 
         if !frame_source_dir.exists() {
-            eprintln!("Warning: Temporary frame directory {} does not exist. Skipping video creation.", temp_frame_dir);
+            eprintln!(
+                "Warning: Temporary frame directory {} does not exist. Skipping video creation.",
+                temp_frame_dir
+            );
             return Ok(());
         }
 
@@ -565,21 +740,29 @@ impl VideoProcessor {
             Ok(reader) => reader
                 .filter_map(|entry| entry.ok())
                 .filter(|entry| {
-                    entry.path().is_file() &&
-                    entry.path().extension()
-                        .and_then(|ext| ext.to_str())
-                        .map(|ext| ext.eq_ignore_ascii_case("jpg"))
-                        .unwrap_or(false)
+                    entry.path().is_file()
+                        && entry
+                            .path()
+                            .extension()
+                            .and_then(|ext| ext.to_str())
+                            .map(|ext| ext.eq_ignore_ascii_case("jpg"))
+                            .unwrap_or(false)
                 })
                 .collect(),
             Err(e) => {
-                eprintln!("Warning: Failed to read temporary frame directory {}: {}. Skipping video creation.", temp_frame_dir, e);
+                eprintln!(
+                    "Warning: Failed to read temporary frame directory {}: {}. Skipping video creation.",
+                    temp_frame_dir, e
+                );
                 return Ok(());
             }
         };
 
         if image_files.is_empty() {
-            println!("No .jpg frames found in {}. No video will be created.", temp_frame_dir);
+            println!(
+                "No .jpg frames found in {}. No video will be created.",
+                temp_frame_dir
+            );
             return Ok(());
         }
 
@@ -590,7 +773,10 @@ impl VideoProcessor {
             let filename_a = path_a.file_stem().and_then(|n| n.to_str()).unwrap_or("");
             let filename_b = path_b.file_stem().and_then(|n| n.to_str()).unwrap_or("");
 
-            match (Self::parse_frame_filename(filename_a), Self::parse_frame_filename(filename_b)) {
+            match (
+                Self::parse_frame_filename(filename_a),
+                Self::parse_frame_filename(filename_b),
+            ) {
                 (Some((vid_a, frame_a)), Some((vid_b, frame_b))) => {
                     vid_a.cmp(&vid_b).then_with(|| frame_a.cmp(&frame_b))
                 }
@@ -603,22 +789,31 @@ impl VideoProcessor {
         // Create FFmpeg list file
         let list_file_path = frame_source_dir.join("ffmpeg_list.txt");
         {
-            let mut list_file = fs::File::create(&list_file_path)
-                .map_err(|e| ProcessError::IoError(format!("Failed to create ffmpeg list file: {}", e)))?;
+            let mut list_file = fs::File::create(&list_file_path).map_err(|e| {
+                ProcessError::IoError(format!("Failed to create ffmpeg list file: {}", e))
+            })?;
             for entry in &image_files {
                 match fs::canonicalize(entry.path()) {
                     Ok(absolute_path) => {
                         let path_str = absolute_path.to_string_lossy().replace("\\", "/");
                         if writeln!(list_file, "file '{}'", path_str).is_err() {
-                            eprintln!("Error writing to ffmpeg list file for {}", entry.path().display());
+                            eprintln!(
+                                "Error writing to ffmpeg list file for {}",
+                                entry.path().display()
+                            );
                         }
                     }
                     Err(e) => {
-                        eprintln!("Warning: Could not canonicalize path {}: {}", entry.path().display(), e);
+                        eprintln!(
+                            "Warning: Could not canonicalize path {}: {}",
+                            entry.path().display(),
+                            e
+                        );
                     }
                 }
             }
-            list_file.flush()
+            list_file
+                .flush()
                 .map_err(|e| ProcessError::IoError(format!("Failed to flush list file: {}", e)))?;
         }
 
@@ -642,10 +837,17 @@ impl VideoProcessor {
             .arg("-loglevel")
             .arg("warning");
 
-        println!("Creating video from frames: {}", output_video_path.display());
+        println!(
+            "Creating video from frames: {}",
+            output_video_path.display()
+        );
 
-        let output = cmd.output()
-            .map_err(|e| ProcessError::ProcessingFailed(format!("Failed to execute ffmpeg for video creation: {}", e)))?;
+        let output = cmd.output().map_err(|e| {
+            ProcessError::ProcessingFailed(format!(
+                "Failed to execute ffmpeg for video creation: {}",
+                e
+            ))
+        })?;
 
         if !output.status.success() {
             eprintln!("ffmpeg stdout: {}", String::from_utf8_lossy(&output.stdout));
@@ -656,7 +858,10 @@ impl VideoProcessor {
             )));
         }
 
-        println!("Successfully created video: {}", output_video_path.display());
+        println!(
+            "Successfully created video: {}",
+            output_video_path.display()
+        );
         Ok(())
     }
 
@@ -665,12 +870,65 @@ impl VideoProcessor {
         // Parse patterns like "video001_frame0000123" or "video0_frame000456"
         if let Some(captures) = regex::Regex::new(r"video(\d+)_frame(\d+)")
             .ok()?
-            .captures(filename) {
+            .captures(filename)
+        {
             let video_index = captures.get(1)?.as_str().parse().ok()?;
             let frame_number = captures.get(2)?.as_str().parse().ok()?;
             Some((video_index, frame_number))
         } else {
             None
         }
+    }
+
+    /// Process extraction only (no video creation)
+    fn process_extraction_only(
+        video_list: &[PathBuf],
+        config: &VideoExtractionConfig,
+        output_base: &PathBuf,
+        dir_tag: &str,
+    ) -> Result<(), ProcessError> {
+        println!("Extraction only mode - skipping video creation");
+
+        // Create specific output directory for this batch
+        let dir_name = format!("{}_{}_frames", config.output_prefix, dir_tag);
+        let output_path = output_base.join(dir_name);
+        fs::create_dir_all(&output_path).map_err(|e| {
+            ProcessError::IoError(format!("Failed to create output directory: {}", e))
+        })?;
+
+        println!(
+            "Extracting frames to persistent directory: {}",
+            output_path.display()
+        );
+
+        // Extract frames
+        for (video_index, video_path) in video_list.iter().enumerate() {
+            println!(
+                "  Thread {:?} extracting from video {}/{}: {}",
+                thread::current().id(),
+                video_index + 1,
+                video_list.len(),
+                video_path.display()
+            );
+
+            if config.extraction_mode == "ffmpeg" {
+                Self::extract_frames_ffmpeg(
+                    video_path.to_str().unwrap(),
+                    video_index,
+                    output_path.to_str().unwrap(),
+                    config.frame_interval,
+                )?;
+            } else {
+                Self::extract_frames_opencv(
+                    video_path.to_str().unwrap(),
+                    video_index,
+                    output_path.to_str().unwrap(),
+                    config.frame_interval,
+                    &config.hardware_acceleration,
+                )?;
+            }
+        }
+
+        Ok(())
     }
 }

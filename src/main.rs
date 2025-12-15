@@ -19,7 +19,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("Usage: cargo run process <config_file_path>");
                 return Ok(());
             }
-            cli::run_process_mode(&args[2])?;
+            if args[2] == "extract" {
+                if args.len() < 5 {
+                    println!("Error: Extract mode requires input and output paths");
+                    println!("Usage: cargo run process extract <input_file> <output_dir>");
+                    return Ok(());
+                }
+                cli::run_extraction_mode(&args[3], &args[4])?;
+            } else {
+                cli::run_process_mode(&args[2])?;
+            }
         }
         "hls" => {
             cli::run_hls_mode(&args[2..])?;
