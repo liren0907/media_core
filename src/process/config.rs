@@ -1,5 +1,5 @@
 use super::hw_accel::HardwareAccelConfig;
-use crate::process::types::{get_default_supported_formats, FileFormat, ProcessingMode};
+use crate::process::types::{FileFormat, ProcessingMode, get_default_supported_formats};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Write;
@@ -15,6 +15,7 @@ pub struct VideoExtractionConfig {
     pub frame_interval: usize,
     pub extraction_mode: String,
     pub create_summary_per_thread: Option<bool>,
+    /// Mode for video creation: "direct", "temp_frames", or "skip" (extraction only)
     pub video_creation_mode: Option<String>,
     pub processing_mode: Option<String>,
 

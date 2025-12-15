@@ -1,7 +1,7 @@
-use opencv::{videoio, Result};
+use crate::rtsp::types::HLSConfig;
+use opencv::{Result, videoio};
 use std::process::Child;
 use std::time::{Duration, Instant};
-use crate::rtsp::types::HLSConfig;
 
 pub struct RTSPCapture {
     pub url: String,
@@ -63,7 +63,7 @@ impl RTSPCapture {
         if self.use_custom_fps {
             self.start_opencv_recording()?;
             self.process_stream_opencv()
-        } 
+        }
         // Priority 3: FFmpeg mode (default)
         else {
             self.start_ffmpeg_recording().map_err(|e| {

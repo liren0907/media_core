@@ -4,6 +4,8 @@
 
 - [Config Generation Tests](#config-generation-tests)
 - [RTSP Stream Extraction Tests](#rtsp-stream-extraction-tests)
+- [HLS Conversion Tests](#hls-conversion-tests)
+- [Process Module Tests](#process-module-tests)
 
 ---
 
@@ -74,3 +76,64 @@ cd data/rtsp
 cargo test --test test_rtsp_extraction -- --nocapture  # Terminal 3
 ```
 
+---
+
+## HLS Conversion Tests
+
+**File**: `tests/test_hls_conversion.rs`
+
+### Tests
+
+1. **`test_hls_config_generation`** - Validates HLS config defaults and JSON serialization
+2. **`test_hls_conversion`** - Converts `data/test.mp4` to HLS format
+
+### Prerequisites
+- FFmpeg installed
+- Test video at `data/test.mp4`
+
+### Run
+```bash
+cargo test --test test_hls_conversion -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Output | Duration |
+|------|--------|----------|
+| `test_hls_config_generation` | None | <1s |
+| `test_hls_conversion` | `hls_test_output/*.m3u8, *.ts` | ~5s |
+
+---
+
+## Process Module Tests
+
+**File**: `tests/test_process_module.rs`
+
+### Tests
+
+1.  **`test_process_config_generation`** - Validates Process config defaults and JSON serialization.
+2.  **`test_video_extraction`** - **Integration Test**: Extracts frames from `data/test.mp4`.
+    -   Mode: "skip" (Direct frame extraction, no video creation).
+    -   Output: Temporary directory (cleaned up automatically).
+    -   Verification: Checks that `.jpg` files are created.
+3.  **`test_video_creation`** - **Integration Test**: Creates a time-lapse video from `data/test.mp4`.
+    -   Mode: "direct" (Direct video creation).
+    -   Output: Temporary directory.
+    -   Verification: Checks that `.mp4` file is created and has size > 0.
+
+### Prerequisites
+
+-   Test video at `data/test.mp4`.
+
+### Run
+
+```bash
+cargo test --test test_process_module -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Mode | Output | Duration |
+| :--- | :--- | :--- | :--- |
+| `test_video_extraction` | Skip (Direct) | `.jpg` frames | ~2s |
+| `test_video_creation` | Direct | `.mp4` video | ~2s |

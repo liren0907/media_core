@@ -1,5 +1,5 @@
-use media_core::process::ProcessConfig;
 use media_core::CaptureConfig;
+use media_core::process::ProcessConfig;
 use std::fs::File;
 use std::io::Read;
 use tempfile::tempdir;

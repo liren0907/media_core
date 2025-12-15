@@ -1,6 +1,6 @@
 use crate::rtsp::capture::RTSPCapture;
 use chrono::Local;
-use opencv::{prelude::*, videoio, Result};
+use opencv::{Result, prelude::*, videoio};
 use std::fs;
 use std::path::PathBuf;
 use std::thread;
@@ -10,7 +10,10 @@ impl RTSPCapture {
     pub fn start_opencv_recording(&mut self) -> Result<()> {
         let mut capture = videoio::VideoCapture::from_file(&self.url, videoio::CAP_FFMPEG)?;
         if !capture.is_opened()? {
-            return Err(opencv::Error::new(opencv::core::StsError, "Failed to open RTSP stream"));
+            return Err(opencv::Error::new(
+                opencv::core::StsError,
+                "Failed to open RTSP stream",
+            ));
         }
 
         let stream_fps = capture.get(videoio::CAP_PROP_FPS)?;
@@ -90,7 +93,10 @@ impl RTSPCapture {
                 .replace(":", "_")
         ));
         fs::create_dir_all(&camera_dir).map_err(|e| {
-            opencv::Error::new(opencv::core::StsError, &format!("Failed to create directory: {}", e))
+            opencv::Error::new(
+                opencv::core::StsError,
+                &format!("Failed to create directory: {}", e),
+            )
         })?;
         let timestamp = Local::now().format("%Y%m%d_%H%M%S");
         let file_name = camera_dir.join(format!("segment_{}.mp4", timestamp));
@@ -114,7 +120,10 @@ impl RTSPCapture {
                 true,
             )?;
             if !writer.is_opened()? {
-                return Err(opencv::Error::new(opencv::core::StsError, "Failed to create video writer"));
+                return Err(opencv::Error::new(
+                    opencv::core::StsError,
+                    "Failed to create video writer",
+                ));
             }
             self.writer = Some(writer);
             self.current_file_start = Instant::now();

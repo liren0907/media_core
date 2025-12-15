@@ -1,11 +1,11 @@
+use opencv::prelude::{VideoCaptureTrait, VideoCaptureTraitConst};
 use opencv::videoio::{VideoCapture, VideoCaptureAPIs::*, VideoCaptureProperties::*};
-use opencv::prelude::{VideoCaptureTraitConst, VideoCaptureTrait};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct HardwareAccelConfig {
     pub enabled: bool,
-    pub mode: String,           // "auto", "apple_silicon", "cuda", "disabled"  
+    pub mode: String, // "auto", "apple_silicon", "cuda", "disabled"
     pub fallback_to_cpu: bool,
     pub prefer_backends: Vec<String>,
 }
@@ -13,7 +13,7 @@ pub struct HardwareAccelConfig {
 impl Default for HardwareAccelConfig {
     fn default() -> Self {
         Self {
-            enabled: false,  // Default to existing behavior
+            enabled: false, // Default to existing behavior
             mode: "auto".to_string(),
             fallback_to_cpu: true,
             prefer_backends: vec!["any".to_string()],
@@ -26,20 +26,22 @@ pub struct HardwareAcceleratedCapture;
 impl HardwareAcceleratedCapture {
     /// Create VideoCapture with platform-specific hardware acceleration
     pub fn create_capture(
-        video_filename: &str, 
-        hw_config: &HardwareAccelConfig
+        video_filename: &str,
+        hw_config: &HardwareAccelConfig,
     ) -> Result<VideoCapture, Box<dyn std::error::Error>> {
-        
         if !hw_config.enabled {
             // Use original implementation - no changes to existing behavior
             println!("🔧 Hardware acceleration disabled - using original CPU implementation");
             return Ok(VideoCapture::from_file(video_filename, CAP_ANY.into())?);
         }
 
-        println!("🚀 Attempting hardware acceleration (mode: {})", hw_config.mode);
-        
+        println!(
+            "🚀 Attempting hardware acceleration (mode: {})",
+            hw_config.mode
+        );
+
         let backends = Self::get_platform_backends(hw_config);
-        
+
         for (backend, description) in backends.iter() {
             if let Some(cap) = Self::try_backend(video_filename, *backend, description)? {
                 return Ok(cap);
@@ -61,9 +63,7 @@ impl HardwareAcceleratedCapture {
                 (CAP_AVFOUNDATION.into(), "Apple AVFoundation + VideoToolbox"),
                 (CAP_FFMPEG.into(), "FFmpeg + VideoToolbox"),
             ],
-            "cuda" => vec![
-                (CAP_FFMPEG.into(), "FFmpeg + CUDA"),  
-            ],
+            "cuda" => vec![(CAP_FFMPEG.into(), "FFmpeg + CUDA")],
             "auto" => {
                 // Auto-detect platform and return appropriate backends
                 if cfg!(target_os = "macos") && Self::is_apple_silicon() {
@@ -91,23 +91,25 @@ impl HardwareAcceleratedCapture {
                     println!("❓ Unknown platform - using CPU default");
                     vec![(CAP_ANY.into(), "CPU Default")]
                 }
-            },
+            }
             "disabled" => vec![(CAP_ANY.into(), "CPU Default")],
             _ => {
-                println!("⚠️  Unknown acceleration mode '{}' - using CPU default", config.mode);
+                println!(
+                    "⚠️  Unknown acceleration mode '{}' - using CPU default",
+                    config.mode
+                );
                 vec![(CAP_ANY.into(), "CPU Default")]
             }
         }
     }
 
     fn try_backend(
-        video_filename: &str, 
-        backend: i32, 
-        description: &str
+        video_filename: &str,
+        backend: i32,
+        description: &str,
     ) -> Result<Option<VideoCapture>, Box<dyn std::error::Error>> {
-        
         println!("🔧 Trying backend: {}", description);
-        
+
         match VideoCapture::from_file(video_filename, backend.into()) {
             Ok(mut cap) => {
                 if cap.is_opened()? {
@@ -117,17 +119,17 @@ impl HardwareAcceleratedCapture {
                         let _ = cap.set(CAP_PROP_HW_ACCELERATION as i32, 1.0);
                         let _ = cap.set(CAP_PROP_HW_DEVICE as i32, -1.0);
                     }
-                    
+
                     println!("✅ Successfully opened with {}", description);
                     if let Ok(backend_name) = cap.get_backend_name() {
                         println!("📹 Active backend: {}", backend_name);
-                        
+
                         // Log hardware acceleration status
                         if let Ok(hw_status) = cap.get(CAP_PROP_HW_ACCELERATION as i32) {
                             println!("⚡ Hardware acceleration status: {}", hw_status);
                         }
                     }
-                    
+
                     return Ok(Some(cap));
                 }
             }
@@ -135,7 +137,7 @@ impl HardwareAcceleratedCapture {
                 println!("❌ Failed {}: {}", description, e);
             }
         }
-        
+
         Ok(None)
     }
 
@@ -146,7 +148,7 @@ impl HardwareAcceleratedCapture {
             use std::process::Command;
             if let Ok(output) = Command::new("sysctl")
                 .args(&["-n", "machdep.cpu.brand_string"])
-                .output() 
+                .output()
             {
                 let cpu_info = String::from_utf8_lossy(&output.stdout);
                 return cpu_info.contains("Apple");
