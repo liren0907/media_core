@@ -8,19 +8,17 @@ use std::time::Duration;
 
 impl RTSPCapture {
     /// Start HLS (HTTP Live Streaming) output
-    /// 
+    ///
     /// Spawns FFmpeg process to transcode RTSP stream to HLS format (.m3u8 + .ts segments).
     /// Uses stream copy mode (no transcoding) for low latency and CPU usage.
-    /// 
+    ///
     /// # Returns
     /// - `Ok(())` if FFmpeg process started successfully
     /// - `Err` if HLS config is missing or FFmpeg spawn fails
     pub fn start_hls_streaming(&mut self) -> std::io::Result<()> {
-        let hls_config = self.hls_config.as_ref()
-            .ok_or_else(|| std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "HLS config not provided"
-            ))?;
+        let hls_config = self.hls_config.as_ref().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "HLS config not provided")
+        })?;
 
         let output_dir = PathBuf::from(&hls_config.output_directory);
         fs::create_dir_all(&output_dir)?;
@@ -30,15 +28,24 @@ impl RTSPCapture {
         let mut command = Command::new("ffmpeg");
         command
             .arg("-y")
-            .arg("-loglevel").arg("error")
-            .arg("-rtsp_transport").arg("tcp")
-            .arg("-i").arg(&self.url)
-            .arg("-c:v").arg("copy")
-            .arg("-c:a").arg("copy")
-            .arg("-f").arg("hls")
-            .arg("-hls_time").arg(hls_config.segment_duration.to_string())
-            .arg("-hls_list_size").arg(hls_config.playlist_size.to_string())
-            .arg("-hls_flags").arg("delete_segments");
+            .arg("-loglevel")
+            .arg("error")
+            .arg("-rtsp_transport")
+            .arg("tcp")
+            .arg("-i")
+            .arg(&self.url)
+            .arg("-c:v")
+            .arg("copy")
+            .arg("-c:a")
+            .arg("copy")
+            .arg("-f")
+            .arg("hls")
+            .arg("-hls_time")
+            .arg(hls_config.segment_duration.to_string())
+            .arg("-hls_list_size")
+            .arg(hls_config.playlist_size.to_string())
+            .arg("-hls_flags")
+            .arg("delete_segments");
 
         // Add timeout for testing mode
         if self.run_once {
@@ -61,7 +68,7 @@ impl RTSPCapture {
     }
 
     /// Monitor and maintain HLS streaming process
-    /// 
+    ///
     /// Similar to process_stream_ffmpeg() but for HLS mode.
     /// Monitors the FFmpeg HLS process and restarts on failure.
     pub fn process_stream_hls(&mut self) -> Result<()> {
@@ -97,10 +104,7 @@ impl RTSPCapture {
             if let Some(process) = &mut self.ffmpeg_process {
                 match process.try_wait() {
                     Ok(Some(status)) => {
-                        println!(
-                            "HLS process for {} ended with status: {}",
-                            self.url, status
-                        );
+                        println!("HLS process for {} ended with status: {}", self.url, status);
                         if !status.success() {
                             eprintln!("❌ HLS process failed for {}, restarting...", self.url);
                             consecutive_failures += 1;

@@ -1,4 +1,4 @@
-use media_core::{CaptureConfig, RTSPCapture, SavingOption, HLSConfig};
+use media_core::{CaptureConfig, HLSConfig, RTSPCapture, SavingOption};
 use std::path::Path;
 
 #[test]
@@ -79,20 +79,20 @@ fn test_hls_streaming() {
     let hls_config = HLSConfig {
         enabled: true,
         output_directory: "hls_test_output".to_string(),
-        segment_duration: 2,    // Short segments for testing
-        playlist_size: 3,       // Small playlist for testing
+        segment_duration: 2, // Short segments for testing
+        playlist_size: 3,    // Small playlist for testing
     };
 
     // Create RTSPCapture with HLS enabled
     let mut capture = RTSPCapture::new(
         "rtsp://localhost:8554/mystream".to_string(),
-        "output".to_string(), // Won't be used (HLS has its own directory)
-        false,                // show_preview
-        30,                   // segment_duration_secs
-        false,                // use_custom_fps
-        30.0,                 // custom_fps
+        "output".to_string(),     // Won't be used (HLS has its own directory)
+        false,                    // show_preview
+        30,                       // segment_duration_secs
+        false,                    // use_custom_fps
+        30.0,                     // custom_fps
         Some(hls_config.clone()), // HLS config
-        true,                 // run_once: true for testing
+        true,                     // run_once: true for testing
     )
     .expect("Failed to create RTSP capture");
 
@@ -117,11 +117,7 @@ fn test_hls_streaming() {
     let ts_files: Vec<_> = std::fs::read_dir(hls_output_path)
         .expect("Failed to read HLS output directory")
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map_or(false, |ext| ext == "ts")
-        })
+        .filter(|e| e.path().extension().map_or(false, |ext| ext == "ts"))
         .collect();
 
     assert!(

@@ -7,15 +7,18 @@
 // Module declarations
 pub mod config;
 pub mod factories;
+pub mod handlers;
 pub mod hw_accel;
 pub mod processor;
 pub mod stats;
 pub mod types;
+pub mod validation;
 pub mod video;
+pub mod workers;
 
 // Re-export commonly used items for convenience
 pub use config::{
-    generate_default_config, ProcessConfig, ProcessingOptions, VideoExtractionConfig,
+    ProcessConfig, ProcessingOptions, VideoExtractionConfig, generate_default_config,
 };
 pub use factories::{
     create_processor, create_processor_with_mode, create_processor_with_options,
@@ -25,7 +28,7 @@ pub use hw_accel::{HardwareAccelConfig, HardwareAcceleratedCapture};
 pub use processor::Processor;
 pub use stats::ProcessingStats;
 pub use types::{
-    get_default_supported_formats, AudioFormat, DocumentFormat, FileFormat, ImageFormat,
-    ProcessError, ProcessingMode, VideoFormat,
+    AudioFormat, DocumentFormat, FileFormat, ImageFormat, ProcessError, ProcessingMode,
+    VideoFormat, get_default_supported_formats,
 };
 pub use video::VideoProcessor;
