@@ -5,15 +5,27 @@ use opencv::{
 };
 
 use super::analyzer::SimilarityMethodImpl;
+use crate::analysis::config::PerceptualHashConfig;
 use crate::analysis::types::AnalysisError;
 
+/// Perceptual hash (aHash) based image similarity
 pub struct PerceptualHashMethod {
     hash_size: i32,
 }
 
 impl PerceptualHashMethod {
+    #[allow(dead_code)]
     pub fn new(_resize_width: i32, _resize_height: i32) -> Result<Self, AnalysisError> {
-        Ok(Self { hash_size: 8 })
+        Ok(Self {
+            hash_size: PerceptualHashConfig::default().hash_size,
+        })
+    }
+
+    /// Create with custom configuration
+    pub fn with_config(config: &PerceptualHashConfig) -> Result<Self, AnalysisError> {
+        Ok(Self {
+            hash_size: config.hash_size,
+        })
     }
 
     fn compute_phash(&self, img: &Mat) -> Result<Vec<u8>, AnalysisError> {
@@ -21,7 +33,7 @@ impl PerceptualHashMethod {
         let mut gray = Mat::default();
         imgproc::cvt_color_def(img, &mut gray, imgproc::COLOR_BGR2GRAY)?;
 
-        // Resize to small size for hash
+        // Resize to hash_size x hash_size
         let mut resized = Mat::default();
         imgproc::resize_def(
             &gray,
@@ -38,7 +50,9 @@ impl PerceptualHashMethod {
         let avg = mean[0];
 
         // Generate hash: each bit is 1 if pixel > mean, 0 otherwise
-        let mut hash = Vec::with_capacity((self.hash_size * self.hash_size / 8) as usize);
+        let total_bits = self.hash_size * self.hash_size;
+        let num_bytes = ((total_bits + 7) / 8) as usize;
+        let mut hash = Vec::with_capacity(num_bytes);
         let mut current_byte: u8 = 0;
         let mut bit_count = 0;
 
@@ -55,6 +69,11 @@ impl PerceptualHashMethod {
                     bit_count = 0;
                 }
             }
+        }
+
+        // Push remaining bits if any
+        if bit_count > 0 {
+            hash.push(current_byte);
         }
 
         Ok(hash)
