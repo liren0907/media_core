@@ -6,6 +6,7 @@
 - [RTSP Stream Extraction Tests](#rtsp-stream-extraction-tests)
 - [HLS Conversion Tests](#hls-conversion-tests)
 - [Process Module Tests](#process-module-tests)
+- [Metadata Module Tests](#metadata-module-tests)
 
 ---
 
@@ -137,3 +138,34 @@ cargo test --test test_process_module -- --nocapture
 | :--- | :--- | :--- | :--- |
 | `test_video_extraction` | Skip (Direct) | `.jpg` frames | ~2s |
 | `test_video_creation` | Direct | `.mp4` video | ~2s |
+
+---
+
+## Metadata Module Tests
+
+**File**: `tests/test_metadata.rs`
+
+### Tests
+
+1. **`test_get_media_info`** - **Unit Test**: Validates metadata extraction.
+    -   **Input**: `data/test.mp4`
+    -   **Verification**: Checks that:
+        -   Function returns `Ok`.
+        -   `media_type` is "video".
+        -   Basic fields (`width`, `height`, `duration_seconds`) are valid (> 0).
+
+### Prerequisites
+
+-   Test video at `data/test.mp4`.
+
+### Run
+
+```bash
+cargo test --test test_metadata -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Output | Duration |
+| :--- | :--- | :--- |
+| `test_get_media_info` | Metadata logs | <1s |
