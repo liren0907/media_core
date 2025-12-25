@@ -6,14 +6,15 @@ use opencv::{
 };
 
 use crate::streaming::helpers::{get_video_capture, mat_to_base64_jpeg};
-use crate::streaming::types::{FrameData, SamplingStrategy, StreamResult};
+use crate::streaming::strategy::SamplingStrategy;
+use crate::streaming::types::FrameData;
 
 pub fn stream_frames(
     video_path: &str,
     skip: usize,
     max: usize,
     scale_factor: Option<f64>,
-) -> StreamResult<Vec<FrameData>> {
+) -> Result<Vec<FrameData>, String> {
     let mut cam = get_video_capture(video_path)?;
     let mut frames = Vec::new();
     let mut frame = Mat::default();
@@ -70,7 +71,7 @@ pub fn stream_frames(
 pub fn stream_frames_sampled(
     video_path: &str,
     sampling_strategy: SamplingStrategy,
-) -> StreamResult<Vec<FrameData>> {
+) -> Result<Vec<FrameData>, String> {
     let mut cam = get_video_capture(video_path)?;
 
     let total_frames = cam.get(videoio::CAP_PROP_FRAME_COUNT).unwrap_or(0.0) as usize;
