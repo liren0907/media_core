@@ -11,6 +11,10 @@ path = "src/lib.rs"
 name = "media_core"
 path = "src/main.rs"
 
+[[bin]]
+name = "streaming"
+path = "src/bin/streaming.rs"
+
 [dependencies]
 # Dependencies from media_core crate
 opencv = "0.93.5"

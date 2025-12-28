@@ -1,145 +1,90 @@
 # Streaming Module
 
-Frame extraction and streaming utilities for video files.
+Frame extraction and streaming utilities for video files, centered around the unified `StreamExtractor`.
 
-**Location:** `src/video_processing/streaming/`
+**Location:** `src/streaming/`
 
 ## Module Structure
 
 ```
 streaming/
 ├── mod.rs        # Exports
-├── types.rs      # FrameData, SamplingStrategy, StreamProgress, StreamResult
-├── extractor.rs  # extract_frame, extract_frames_interval
-├── helpers.rs    # get_stream_info, get_video_capture
-└── sampler.rs    # stream_frames, stream_frames_sampled
+├── extractor.rs  # StreamExtractor struct (The core engine)
+├── strategy.rs   # enum SamplingStrategy
+├── types.rs      # struct FrameData, struct StreamProgress
+└── helpers.rs    # Low-level utilities (OpenCV integration)
 ```
 
-## Functions
+## Functions & Structs
 
-### `stream_frames`
+### `StreamExtractor`
 
-Extract frames from video with basic options.
+The primary tool for extracting frames. It supports both **Seek** (sparse sampling) and **Sequential** (continuous reading) modes.
 
 ```rust
-pub fn stream_frames(
-    video_path: &str,
-    skip: usize,
-    max: usize,
-    scale_factor: Option<f64>,
-) -> StreamResult<Vec<FrameData>>
+// 1. Initialize (Optional strategy, defaults to All Frames)
+let mut extractor = StreamExtractor::new("video.mp4", None)?;
+
+// 2. Configure (Optional)
+extractor.set_mode(ExtractionMode::Seek); // or Sequential
+extractor.set_strategy(SamplingStrategy::EveryNth(10));
+
+// 3. Extract
+let frames: Vec<FrameData> = extractor.extract(Some(0.5))?; // 0.5 scale factor
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `video_path` | `&str` | Path to video file |
-| `skip` | `usize` | Number of frames to skip from start |
-| `max` | `usize` | Maximum frames to extract |
-| `scale_factor` | `Option<f64>` | Resize factor (e.g., 0.5 = half size) |
+**Key Methods:**
+*   `new(path, option<strategy>)`: Create a new stateful extractor.
+*   `set_strategy(strategy)`: Change what frames to extract.
+*   `set_mode(mode)`: Switch between `Seek` (jump) and `Sequential` (scan).
+*   `extract(scale_factor)`: Perform the extraction.
 
-**Example:**
+---
+
+### `SamplingStrategy`
+
+Defines **which** frames to extract.
+
 ```rust
-use media_core::video_processing::{stream_frames, FrameData};
-
-let frames = stream_frames("video.mp4", 30, 10, Some(0.5))?;
-for frame in frames {
-    println!("Frame {}: {} bytes", frame.index, frame.data.len());
+pub enum SamplingStrategy {
+    EveryNth(usize),      // 1, 11, 21...
+    FirstN(usize),        // 0, 1, 2... N
+    Range(usize, usize),  // Start..End
+    KeyFrames,            // Keyframes typically every 30
+    Custom(Vec<usize>),   // Explicit list [0, 100, 500]
 }
 ```
 
 ---
 
-### `stream_frames_sampled`
+### `ExtractionMode`
 
-Extract frames using smart sampling strategies.
+Defines **how** to read frames.
 
-```rust
-pub fn stream_frames_sampled(
-    video_path: &str,
-    sampling_strategy: SamplingStrategy,
-) -> StreamResult<Vec<FrameData>>
-```
-
-**Sampling Strategies:**
-
-| Strategy | Description |
-|----------|-------------|
-| `EveryNth(n)` | Every Nth frame |
-| `FirstN(n)` | First N frames only |
-| `Range(start, end)` | Frame range [start, end) |
-| `KeyFrames` | Every 30th frame |
-| `Custom(Vec<usize>)` | Specific frame indices |
-
-**Example:**
-```rust
-use media_core::video_processing::{stream_frames_sampled, SamplingStrategy};
-
-// Every 10th frame
-let frames = stream_frames_sampled("video.mp4", SamplingStrategy::EveryNth(10))?;
-
-// Frames 100-200
-let frames = stream_frames_sampled("video.mp4", SamplingStrategy::Range(100, 200))?;
-
-// Specific frames
-let frames = stream_frames_sampled("video.mp4", SamplingStrategy::Custom(vec![0, 50, 100, 150]))?;
-```
+*   `Seek` (Default): Jumps to specific frames. Best for sparse sampling (e.g., EveryNth(100)).
+*   `Sequential`: Reads frames one by one. Best for continuous blocks (e.g., Range(0, 100)).
 
 ---
 
-### `get_stream_info`
+### Low-Level Helpers
 
-Get video information before streaming.
-
+#### `get_stream_info`
+Quickly get video metadata without extracting frames.
 ```rust
-pub fn get_stream_info(video_path: &str) -> StreamResult<StreamProgress>
-```
-
-**Example:**
-```rust
-use media_core::video_processing::get_stream_info;
-
 let info = get_stream_info("video.mp4")?;
-println!("{}", info.message);
-// Output: "Video: 1920x1080 @ 30.00 FPS, 1800 frames"
+// info.total, info.message, etc.
 ```
 
----
-
-### `extract_frame`
-
-Extract a single frame at specific index.
-
+#### `get_video_capture`
+Get raw OpenCV `VideoCapture` object.
 ```rust
-pub fn extract_frame(video_path: &str, frame_index: usize) -> StreamResult<FrameData>
+let cap = get_video_capture("video.mp4")?;
 ```
 
-**Example:**
+#### `mat_to_base64_jpeg`
+Convert OpenCV Mat to Base64 string.
 ```rust
-use media_core::video_processing::extract_frame;
-
-let frame = extract_frame("video.mp4", 100)?;
-println!("Frame index: {}", frame.index);
-```
-
----
-
-### `extract_frames_interval`
-
-Extract frames at regular intervals.
-
-```rust
-pub fn extract_frames_interval(
-    video_path: &str,
-    interval: usize,
-    max_frames: Option<usize>,
-) -> StreamResult<Vec<FrameData>>
-```
-
-**Example:**
-```rust
-use media_core::video_processing::extract_frames_interval;
-
-let frames = extract_frames_interval("video.mp4", 30, Some(10))?;
+let b64 = mat_to_base64_jpeg(&frame)?;
 ```
 
 ---
@@ -154,37 +99,11 @@ pub struct FrameData {
 }
 ```
 
-### `StreamProgress`
-```rust
-pub struct StreamProgress {
-    pub current: usize,
-    pub total: usize,
-    pub message: String,
-}
-```
-
-### `SamplingStrategy`
-```rust
-pub enum SamplingStrategy {
-    EveryNth(usize),
-    FirstN(usize),
-    Range(usize, usize),
-    KeyFrames,
-    Custom(Vec<usize>),
-}
-```
-
-### `StreamResult<T>`
-```rust
-pub type StreamResult<T> = Result<T, String>;
-```
-
 ## Feature Overview
 
-| Function | Feature | Defined In |
+| Component | Feature | Defined In |
 | :--- | :--- | :--- |
-| **`get_stream_info`** | Fast metadata extraction (dims, fps, count) | `helpers.rs` |
-| **`extract_frame`** | Single frame extraction by index | `extractor.rs` |
-| **`extract_frames_interval`** | Regular interval extraction | `extractor.rs` |
-| **`stream_frames`** | Sequential streaming | `sampler.rs` |
-| **`stream_frames_sampled`** | Complex sampling strategies | `sampler.rs` |
+| **`StreamExtractor`** | The unified engine for all extraction needs | `extractor.rs` |
+| **`SamplingStrategy`** | Defines filtered subsets of frames | `strategy.rs` |
+| **`ExtractionMode`** | Optimizes read performance (Seek vs Sequential) | `extractor.rs` |
+| **`get_stream_info`** | Fast metadata extraction | `helpers.rs` |

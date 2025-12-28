@@ -35,3 +35,9 @@ impl SamplingStrategy {
         }
     }
 }
+
+impl Default for SamplingStrategy {
+    fn default() -> Self {
+        Self::EveryNth(1)
+    }
+}
