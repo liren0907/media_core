@@ -7,6 +7,7 @@ pub enum TextPosition {
     TopRight,
     BottomLeft,
     BottomRight,
+    Center,
 }
 
 impl TextPosition {
@@ -16,6 +17,7 @@ impl TextPosition {
             TextPosition::TopRight => "top_right",
             TextPosition::BottomLeft => "bottom_left",
             TextPosition::BottomRight => "bottom_right",
+            TextPosition::Center => "center",
         }
     }
 
@@ -24,6 +26,7 @@ impl TextPosition {
             "top_right" => TextPosition::TopRight,
             "bottom_left" => TextPosition::BottomLeft,
             "bottom_right" => TextPosition::BottomRight,
+            "center" => TextPosition::Center,
             _ => TextPosition::TopLeft,
         }
     }

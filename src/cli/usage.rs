@@ -12,6 +12,10 @@ pub fn print_usage() {
     println!("    metadata <file_path> [--json]     Extract media file metadata");
     println!("    analysis motion <video> <output>  Run motion detection");
     println!("    analysis similarity <dir> <out>   Run image similarity analysis");
+    println!("    annotation                        Run image/video annotation (see 'annotation --help')");
+    println!("    benchmark -i <video>              Run performance benchmark (see 'benchmark --help')");
+    println!("    streaming -i <video>              Run frame extraction stream (see 'streaming --help')");
+    println!("    video-process -i <video>          Run granular video processing (see 'video-process --help')");
     println!("    config <subcommand>               Generate configuration files");
     println!("    help                              Show this help message");
     println!();
