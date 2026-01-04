@@ -9,6 +9,7 @@ pub fn print_usage() {
     println!("    process <config_file>             Run video processing mode");
     println!("    hls <input_file> <output_dir>     Convert video to HLS VOD format");
     println!("    hls --config <config_file>        Convert using JSON config file");
+    println!("    metadata <file_path> [--json]     Extract media file metadata");
     println!("    analysis motion <video> <output>  Run motion detection");
     println!("    analysis similarity <dir> <out>   Run image similarity analysis");
     println!("    config <subcommand>               Generate configuration files");
@@ -19,6 +20,8 @@ pub fn print_usage() {
     println!("    ./media_core process video_config.json      # Process videos");
     println!("    ./media_core hls video.mp4 hls_output/      # Convert MP4 to HLS");
     println!("    ./media_core hls --config hls_config.json   # Convert using config");
+    println!("    ./media_core metadata video.mp4             # Show video metadata");
+    println!("    ./media_core metadata image.jpg --json      # Output as JSON");
     println!("    ./media_core analysis motion video.mp4 out/ # Detect motion");
     println!("    ./media_core config rtsp                    # Generate RTSP config");
     println!("    ./media_core help                           # Show help");

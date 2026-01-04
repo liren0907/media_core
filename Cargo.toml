@@ -11,6 +11,46 @@ path = "src/lib.rs"
 name = "media_core"
 path = "src/main.rs"
 
+[[bin]]
+name = "streaming"
+path = "src/bin/streaming.rs"
+
+[[bin]]
+name = "process"
+path = "src/bin/process.rs"
+
+[[bin]]
+name = "video_process"
+path = "src/bin/video_process.rs"
+
+[[bin]]
+name = "benchmark"
+path = "src/bin/benchmark.rs"
+
+[[bin]]
+name = "annotation"
+path = "src/bin/annotation.rs"
+
+[[bin]]
+name = "rtsp_sync"
+path = "src/bin/rtsp_sync.rs"
+
+[[bin]]
+name = "rtsp"
+path = "src/bin/rtsp.rs"
+
+[[bin]]
+name = "hls"
+path = "src/bin/hls.rs"
+
+[[bin]]
+name = "analysis"
+path = "src/bin/analysis.rs"
+
+[[bin]]
+name = "metadata"
+path = "src/bin/metadata.rs"
+
 [dependencies]
 # Dependencies from media_core crate
 opencv = "0.93.5"
@@ -22,6 +62,10 @@ path-clean = "1.0"
 serde_path_to_error = "0.1"
 serde_json = "1.0"
 regex = "1.10"
+base64 = "0.22"
+walkdir = "2.4"
+prettytable-rs = "0.10"
+lazy_static = "1.4"
 
 # Dependencies from rtsp_stream_extractor
 rfd = "0.14.1"

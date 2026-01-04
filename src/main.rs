@@ -33,6 +33,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         "hls" => {
             cli::run_hls_mode(&args[2..])?;
         }
+        "metadata" => {
+            cli::run_metadata_mode(&args[2..])?;
+        }
         "analysis" => {
             cli::run_analysis_mode(&args[2..])?;
         }

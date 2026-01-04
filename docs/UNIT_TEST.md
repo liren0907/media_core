@@ -6,6 +6,11 @@
 - [RTSP Stream Extraction Tests](#rtsp-stream-extraction-tests)
 - [HLS Conversion Tests](#hls-conversion-tests)
 - [Process Module Tests](#process-module-tests)
+- [Metadata Module Tests](#metadata-module-tests)
+- [Annotation Module Tests](#annotation-module-tests)
+- [Benchmark Module Tests](#benchmark-module-tests)
+- [Streaming Module Tests](#streaming-module-tests)
+- [Video Process Module Tests](#video-process-module-tests)
 
 ---
 
@@ -137,3 +142,161 @@ cargo test --test test_process_module -- --nocapture
 | :--- | :--- | :--- | :--- |
 | `test_video_extraction` | Skip (Direct) | `.jpg` frames | ~2s |
 | `test_video_creation` | Direct | `.mp4` video | ~2s |
+
+---
+
+## Metadata Module Tests
+
+**File**: `tests/test_metadata.rs`
+
+### Tests
+
+1. **`test_get_media_info`** - **Unit Test**: Validates metadata extraction.
+    -   **Input**: `data/test.mp4`
+    -   **Verification**: Checks that:
+        -   Function returns `Ok`.
+        -   `media_type` is "video".
+        -   Basic fields (`width`, `height`, `duration_seconds`) are valid (> 0).
+
+### Prerequisites
+
+-   Test video at `data/test.mp4`.
+
+### Run
+
+```bash
+cargo test --test test_metadata -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Output | Duration |
+| :--- | :--- | :--- |
+| `test_get_media_info` | Metadata logs | <1s |
+
+---
+
+## Annotation Module Tests
+
+**File**: `tests/test_annotation.rs`
+
+### Tests
+
+1. **`test_single_frame_annotation`** - Example 1: Single image with filename overlay (TopLeft)
+2. **`test_video_from_frames_filename`** - Example 2: Video from frames with filename annotation
+3. **`test_video_from_frames_timestamp`** - Example 3: Video from frames with timestamp annotation (BottomLeft)
+4. **`test_video_from_frames_custom_text`** - Example 4: Video from frames with custom watermark (TopRight)
+
+### Prerequisites
+
+- Test video at `data/test.mp4`
+- FFmpeg installed
+
+### Run
+
+```bash
+cargo test --test test_annotation -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Annotation Type | Output | Duration |
+| :--- | :--- | :--- | :--- |
+| `test_single_frame_annotation` | Filename | `.jpg` image | <1s |
+| `test_video_from_frames_filename` | Filename | `.mp4` video | ~1s |
+| `test_video_from_frames_timestamp` | Timestamp | `.mp4` video | ~1s |
+| `test_video_from_frames_custom_text` | Custom | `.mp4` video | ~1s |
+
+---
+
+## Benchmark Module Tests
+
+**File**: `tests/test_benchmark.rs`
+
+### Tests
+
+1. **`test_benchmark_single_function`** - Benchmark a simple function with multiple runs
+2. **`test_benchmark_result_summary`** - Verify `print_summary()` output
+3. **`test_benchmark_result_to_json`** - Export benchmark results to JSON file
+
+### Prerequisites
+
+- None (uses simple in-memory operations)
+
+### Run
+
+```bash
+cargo test --test test_benchmark -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Output | Duration |
+| :--- | :--- | :--- |
+| `test_benchmark_single_function` | Console stats | <1s |
+| `test_benchmark_result_summary` | Console summary | <1s |
+| `test_benchmark_result_to_json` | `.json` file | <1s |
+
+---
+
+## Streaming Module Tests
+
+**File**: `tests/test_streaming.rs`
+
+### Tests
+
+1. **`test_stream_extractor_single_frame`** - Extract single frame with Custom strategy
+2. **`test_stream_extractor_every_nth`** - Extract with EveryNth(50) strategy
+3. **`test_stream_extractor_first_n`** - Extract with FirstN(5) strategy
+4. **`test_stream_extractor_range`** - Extract with Range(0, 10) strategy
+5. **`test_stream_extractor_scale_factor`** - Compare scale factors (100%, 50%, 25%)
+
+### Prerequisites
+
+- Test video at `data/test.mp4`
+
+### Run
+
+```bash
+cargo test --test test_streaming -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Strategy | Output | Duration |
+| :--- | :--- | :--- | :--- |
+| `test_stream_extractor_single_frame` | Custom | 1 frame | <1s |
+| `test_stream_extractor_every_nth` | EveryNth(50) | ~39 frames | ~1s |
+| `test_stream_extractor_first_n` | FirstN(5) | 5 frames | <1s |
+| `test_stream_extractor_range` | Range(0,10) | 10 frames | <1s |
+| `test_stream_extractor_scale_factor` | FirstN(1) | Size comparison | ~2s |
+
+---
+
+## Video Process Module Tests
+
+**File**: `tests/test_video_process.rs`
+
+### Tests
+
+1. **`test_frame_extractor_opencv_interval`** - Extract frames with OpenCVInterval mode + SingleDirectory
+2. **`test_frame_extractor_parallel`** - Parallel extraction with Rayon + SingleDirectory
+3. **`test_frame_extractor_multiple_directory`** - MultipleDirectory save mode (subdirectory per video)
+
+### Prerequisites
+
+- Test video at `data/test.mp4`
+
+### Run
+
+```bash
+cargo test --test test_video_process -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Mode | SaveMode | Duration |
+| :--- | :--- | :--- | :--- |
+| `test_frame_extractor_opencv_interval` | OpenCVInterval | SingleDirectory | ~2s |
+| `test_frame_extractor_parallel` | Parallel | SingleDirectory | ~1s |
+| `test_frame_extractor_multiple_directory` | OpenCVInterval | MultipleDirectory | ~2s |
