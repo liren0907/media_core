@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.1] - 2026-01-04
+
+### Added
+- **CLI Enhancements**: Integrated standalone tools into the main CLI application:
+  - `annotation`: Image and video annotation command.
+  - `benchmark`: Performance benchmarking command.
+  - `streaming`: Frame extraction stream command.
+  - `video-process`: Granular video processing command with multiple extraction modes.
+
+### Changed
+- **CLI**: Expanded command-line interface to support granular video processing options (`--mode`, `--interval`, `--save-mode`).
+- **Annotation**: Added `Center` text alignment support.
+- **Refactor**: Improved type safety and error handling across CLI modules.
+
 ## [0.3.0] - 2026-01-04
 
 ### Added
