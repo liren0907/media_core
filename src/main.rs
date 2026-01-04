@@ -39,6 +39,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         "analysis" => {
             cli::run_analysis_mode(&args[2..])?;
         }
+        "annotation" => {
+            cli::run_annotation_mode(&args[2..])?;
+        }
+        "benchmark" => {
+            cli::run_benchmark_mode(&args[2..])?;
+        }
+        "streaming" => {
+            cli::run_streaming_mode(&args[2..])?;
+        }
+        "video-process" => {
+            cli::run_video_process_mode(&args[2..])?;
+        }
         "config" => {
             if args.len() < 3 {
                 println!(

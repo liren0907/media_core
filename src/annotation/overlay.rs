@@ -33,6 +33,10 @@ pub fn add_text_overlay_with_position(
         TextPosition::TopRight => Point::new(width - text_size.width - 10, 30),
         TextPosition::BottomLeft => Point::new(10, height - 20),
         TextPosition::BottomRight => Point::new(width - text_size.width - 10, height - 20),
+        TextPosition::Center => Point::new(
+            (width - text_size.width) / 2,
+            (height + text_size.height) / 2,
+        ),
     };
 
     imgproc::put_text(
