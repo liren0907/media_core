@@ -10,6 +10,7 @@
 - [Annotation Module Tests](#annotation-module-tests)
 - [Benchmark Module Tests](#benchmark-module-tests)
 - [Streaming Module Tests](#streaming-module-tests)
+- [Video Process Module Tests](#video-process-module-tests)
 
 ---
 
@@ -269,3 +270,33 @@ cargo test --test test_streaming -- --nocapture
 | `test_stream_extractor_first_n` | FirstN(5) | 5 frames | <1s |
 | `test_stream_extractor_range` | Range(0,10) | 10 frames | <1s |
 | `test_stream_extractor_scale_factor` | FirstN(1) | Size comparison | ~2s |
+
+---
+
+## Video Process Module Tests
+
+**File**: `tests/test_video_process.rs`
+
+### Tests
+
+1. **`test_frame_extractor_opencv_interval`** - Extract frames with OpenCVInterval mode + SingleDirectory
+2. **`test_frame_extractor_parallel`** - Parallel extraction with Rayon + SingleDirectory
+3. **`test_frame_extractor_multiple_directory`** - MultipleDirectory save mode (subdirectory per video)
+
+### Prerequisites
+
+- Test video at `data/test.mp4`
+
+### Run
+
+```bash
+cargo test --test test_video_process -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Mode | SaveMode | Duration |
+| :--- | :--- | :--- | :--- |
+| `test_frame_extractor_opencv_interval` | OpenCVInterval | SingleDirectory | ~2s |
+| `test_frame_extractor_parallel` | Parallel | SingleDirectory | ~1s |
+| `test_frame_extractor_multiple_directory` | OpenCVInterval | MultipleDirectory | ~2s |
