@@ -7,6 +7,8 @@
 - [HLS Conversion Tests](#hls-conversion-tests)
 - [Process Module Tests](#process-module-tests)
 - [Metadata Module Tests](#metadata-module-tests)
+- [Annotation Module Tests](#annotation-module-tests)
+- [Benchmark Module Tests](#benchmark-module-tests)
 
 ---
 
@@ -169,3 +171,66 @@ cargo test --test test_metadata -- --nocapture
 | Test | Output | Duration |
 | :--- | :--- | :--- |
 | `test_get_media_info` | Metadata logs | <1s |
+
+---
+
+## Annotation Module Tests
+
+**File**: `tests/test_annotation.rs`
+
+### Tests
+
+1. **`test_single_frame_annotation`** - Example 1: Single image with filename overlay (TopLeft)
+2. **`test_video_from_frames_filename`** - Example 2: Video from frames with filename annotation
+3. **`test_video_from_frames_timestamp`** - Example 3: Video from frames with timestamp annotation (BottomLeft)
+4. **`test_video_from_frames_custom_text`** - Example 4: Video from frames with custom watermark (TopRight)
+
+### Prerequisites
+
+- Test video at `data/test.mp4`
+- FFmpeg installed
+
+### Run
+
+```bash
+cargo test --test test_annotation -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Annotation Type | Output | Duration |
+| :--- | :--- | :--- | :--- |
+| `test_single_frame_annotation` | Filename | `.jpg` image | <1s |
+| `test_video_from_frames_filename` | Filename | `.mp4` video | ~1s |
+| `test_video_from_frames_timestamp` | Timestamp | `.mp4` video | ~1s |
+| `test_video_from_frames_custom_text` | Custom | `.mp4` video | ~1s |
+
+---
+
+## Benchmark Module Tests
+
+**File**: `tests/test_benchmark.rs`
+
+### Tests
+
+1. **`test_benchmark_single_function`** - Benchmark a simple function with multiple runs
+2. **`test_benchmark_result_summary`** - Verify `print_summary()` output
+3. **`test_benchmark_result_to_json`** - Export benchmark results to JSON file
+
+### Prerequisites
+
+- None (uses simple in-memory operations)
+
+### Run
+
+```bash
+cargo test --test test_benchmark -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Output | Duration |
+| :--- | :--- | :--- |
+| `test_benchmark_single_function` | Console stats | <1s |
+| `test_benchmark_result_summary` | Console summary | <1s |
+| `test_benchmark_result_to_json` | `.json` file | <1s |
