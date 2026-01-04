@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0] - 2026-01-04
+
+### Added
+- **Annotation Module**: Text overlay and watermark for images/videos with `FrameAnnotator`.
+- **Benchmark Module**: Performance timing utilities with `Benchmark` and `BenchmarkSuite`.
+- **RTSP Sync Module**: Synchronized multi-stream capture with latency monitoring.
+- **Video Process Module**: Frame extraction with `FrameExtractor` (5 modes, parallel support).
+- **Unit Tests**: Added tests for annotation, benchmark, streaming, and video_process modules.
+- **Documentation**: Usage guides for annotation, benchmark, and video_process modules.
+
+### Changed
+- **Streaming Module**: Optimized `StreamExtractor` with Seek/Sequential modes.
+- **Metadata Module**: Added FFprobe-based codec analysis.
+
+---
+
 ## [0.2.0] - 2025-12-15
 
 ### Added
