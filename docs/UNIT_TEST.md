@@ -9,6 +9,7 @@
 - [Metadata Module Tests](#metadata-module-tests)
 - [Annotation Module Tests](#annotation-module-tests)
 - [Benchmark Module Tests](#benchmark-module-tests)
+- [Streaming Module Tests](#streaming-module-tests)
 
 ---
 
@@ -234,3 +235,37 @@ cargo test --test test_benchmark -- --nocapture
 | `test_benchmark_single_function` | Console stats | <1s |
 | `test_benchmark_result_summary` | Console summary | <1s |
 | `test_benchmark_result_to_json` | `.json` file | <1s |
+
+---
+
+## Streaming Module Tests
+
+**File**: `tests/test_streaming.rs`
+
+### Tests
+
+1. **`test_stream_extractor_single_frame`** - Extract single frame with Custom strategy
+2. **`test_stream_extractor_every_nth`** - Extract with EveryNth(50) strategy
+3. **`test_stream_extractor_first_n`** - Extract with FirstN(5) strategy
+4. **`test_stream_extractor_range`** - Extract with Range(0, 10) strategy
+5. **`test_stream_extractor_scale_factor`** - Compare scale factors (100%, 50%, 25%)
+
+### Prerequisites
+
+- Test video at `data/test.mp4`
+
+### Run
+
+```bash
+cargo test --test test_streaming -- --nocapture
+```
+
+### Test Comparison
+
+| Test | Strategy | Output | Duration |
+| :--- | :--- | :--- | :--- |
+| `test_stream_extractor_single_frame` | Custom | 1 frame | <1s |
+| `test_stream_extractor_every_nth` | EveryNth(50) | ~39 frames | ~1s |
+| `test_stream_extractor_first_n` | FirstN(5) | 5 frames | <1s |
+| `test_stream_extractor_range` | Range(0,10) | 10 frames | <1s |
+| `test_stream_extractor_scale_factor` | FirstN(1) | Size comparison | ~2s |
