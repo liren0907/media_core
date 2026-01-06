@@ -1,4 +1,5 @@
 pub mod config;
+pub mod hashing;
 pub mod motion;
 pub mod similarity;
 pub mod types;
@@ -12,6 +13,7 @@ pub use config::PerceptualHashConfig;
 pub use config::ProcessMode;
 pub use config::SimilarityConfig;
 pub use config::SimilarityMethod;
+pub use hashing::{ClusteringConfig, Clusterer, Hasher, SimilarityResult};
 pub use motion::MotionDetector;
 pub use similarity::{ProcessingStats, SimilarityAnalyzer};
 pub use types::AnalysisError;

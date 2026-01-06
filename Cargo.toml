@@ -66,6 +66,7 @@ base64 = "0.22"
 walkdir = "2.4"
 prettytable-rs = "0.10"
 lazy_static = "1.4"
+thiserror = "2.0.17"
 
 # Dependencies from rtsp_stream_extractor
 rfd = "0.14.1"

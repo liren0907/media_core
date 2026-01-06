@@ -1,8 +1,10 @@
 pub mod analysis;
+pub mod analysis_process;
 pub mod annotation;
 pub mod benchmark;
 pub mod camera;
 pub mod hls;
+pub mod media_lake;
 pub mod metadata;
 pub mod process;
 pub mod rtsp;
