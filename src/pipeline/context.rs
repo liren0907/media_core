@@ -1,17 +1,17 @@
+use crate::metadata::types::MediaMetadata;
+use crate::pipeline::error::PipelineError;
+use crate::pipeline::traits::PipelineContext;
+use crate::pipeline::types::MediaSource;
+use crate::streaming::FrameData;
+use opencv::prelude::*;
+use opencv::videoio::{CAP_ANY, VideoCapture};
 use std::any::Any;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use crate::pipeline::traits::PipelineContext;
-use crate::pipeline::error::PipelineError;
-use crate::pipeline::types::MediaSource;
-use crate::metadata::types::MediaMetadata;
-use crate::streaming::FrameData;
-use opencv::prelude::*;
-use opencv::videoio::{VideoCapture, CAP_ANY};
+use std::sync::Mutex;
 
 /// The unified context for the Media Core Pipeline.
-/// 
+///
 /// This struct acts as the "Blackboard" where all data and resources are shared
 /// between different processing steps.
 pub struct MediaContext {
@@ -53,46 +53,53 @@ impl MediaContext {
     }
 
     /// Get (or lazily initialize) the OpenCV VideoCapture resource.
-    /// 
+    ///
     /// This ensures we only open the file once, even if multiple steps need it.
     /// Returns a Generic Guard to the VideoCapture.
-    pub fn get_opencv_capture(&mut self) -> Result<std::sync::MutexGuard<'_, VideoCapture>, PipelineError> {
+    pub fn get_opencv_capture(
+        &mut self,
+    ) -> Result<std::sync::MutexGuard<'_, VideoCapture>, PipelineError> {
         const KEY: &str = "opencv_capture";
 
         if !self.resources.contains_key(KEY) {
             // Initialize the resource
             let path_str = match &self.source {
-                MediaSource::File(p) => p.to_str().ok_or(PipelineError::ConfigurationError("Invalid file path".to_string()))?,
+                MediaSource::File(p) => p.to_str().ok_or(PipelineError::ConfigurationError(
+                    "Invalid file path".to_string(),
+                ))?,
                 MediaSource::Stream(s) => s.as_str(),
             };
 
-            let cap = VideoCapture::from_file(path_str, CAP_ANY)
-                .map_err(|e| PipelineError::StepFailed { 
-                    step_name: "ResourceInit".to_string(), 
-                    error: format!("Failed to open OpenCV capture: {}", e) 
-                })?;
+            let cap = VideoCapture::from_file(path_str, CAP_ANY).map_err(|e| {
+                PipelineError::StepFailed {
+                    step_name: "ResourceInit".to_string(),
+                    error: format!("Failed to open OpenCV capture: {}", e),
+                }
+            })?;
 
             if !cap.is_opened().unwrap_or(false) {
-                 return Err(PipelineError::StepFailed {
+                return Err(PipelineError::StepFailed {
                     step_name: "ResourceInit".to_string(),
-                    error: format!("OpenCV capture is not opened for: {}", path_str)
+                    error: format!("OpenCV capture is not opened for: {}", path_str),
                 });
             }
 
             // Wrap in Mutex to satisfy Sync requirements of PipelineContext
             let sync_resource = Mutex::new(cap);
-            self.resources.insert(KEY.to_string(), Box::new(sync_resource));
+            self.resources
+                .insert(KEY.to_string(), Box::new(sync_resource));
         }
 
         // Retrieve, downcast to Mutex<VideoCapture>, and lock
-        let mutex = self.resources
+        let mutex = self
+            .resources
             .get(KEY)
             .and_then(|boxed| boxed.downcast_ref::<Mutex<VideoCapture>>())
             .ok_or_else(|| PipelineError::MissingResource(KEY.to_string()))?;
 
         mutex.lock().map_err(|_| PipelineError::StepFailed {
             step_name: "ResourceAccess".to_string(),
-            error: "Failed to lock OpenCV capture mutex".to_string()
+            error: "Failed to lock OpenCV capture mutex".to_string(),
         })
     }
 }

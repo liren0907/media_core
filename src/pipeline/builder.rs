@@ -12,14 +12,14 @@ impl<T: PipelineContext> Pipeline<T> {
         Self { steps: Vec::new() }
     }
 
-    /// Add a step to the end of the pipeline
-    pub fn add_step<S: PipelineStep<T> + 'static>(mut self, step: S) -> Self {
+    /// Add a node to the end of the pipeline
+    pub fn add_node<S: PipelineStep<T> + 'static>(mut self, step: S) -> Self {
         self.steps.push(Box::new(step));
         self
     }
 
-    /// Add a generic boxed step (useful for dynamic construction)
-    pub fn add_boxed_step(mut self, step: Box<dyn PipelineStep<T>>) -> Self {
+    /// Add a generic boxed node (useful for dynamic construction)
+    pub fn add_boxed_node(mut self, step: Box<dyn PipelineStep<T>>) -> Self {
         self.steps.push(step);
         self
     }
