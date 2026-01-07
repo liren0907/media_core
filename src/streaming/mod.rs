@@ -1,5 +1,6 @@
 mod extractor;
 mod helpers;
+pub mod pipeline;
 mod strategy;
 mod types;
 
