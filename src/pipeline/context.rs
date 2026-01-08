@@ -1,3 +1,4 @@
+use crate::analysis::types::AnalysisReport;
 use crate::metadata::types::MediaMetadata;
 use crate::pipeline::error::PipelineError;
 use crate::pipeline::traits::PipelineContext;
@@ -21,6 +22,9 @@ pub struct MediaContext {
     /// Accumulated Metadata (from Metadata Module)
     pub metadata: Option<MediaMetadata>,
 
+    /// Analysis Results (from Analysis Module)
+    pub analysis: Option<AnalysisReport>,
+
     /// Extracted Frames Buffer (from Streaming Module)
     pub extracted_frames: Vec<FrameData>,
 
@@ -37,6 +41,7 @@ impl MediaContext {
         Self {
             source: MediaSource::File(path),
             metadata: None,
+            analysis: None,
             extracted_frames: Vec::new(),
             resources: HashMap::new(),
         }
@@ -47,6 +52,7 @@ impl MediaContext {
         Self {
             source: MediaSource::Stream(url),
             metadata: None,
+            analysis: None,
             extracted_frames: Vec::new(),
             resources: HashMap::new(),
         }
