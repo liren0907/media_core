@@ -1,11 +1,14 @@
 use crate::analysis::types::AnalysisReport;
 use crate::annotation::pipeline::AnnotationResult;
+use crate::benchmark::pipeline::BenchmarkPipelineResult;
 use crate::hls::pipeline::HLSResult;
 use crate::metadata::types::MediaMetadata;
 use crate::pipeline::error::PipelineError;
 use crate::pipeline::traits::PipelineContext;
 use crate::pipeline::types::MediaSource;
+use crate::process::pipeline::ProcessFilesResult;
 use crate::streaming::FrameData;
+use crate::video_process::pipeline::VideoProcessResult;
 use opencv::prelude::*;
 use opencv::videoio::{CAP_ANY, VideoCapture};
 use std::any::Any;
@@ -36,6 +39,15 @@ pub struct MediaContext {
     /// HLS Conversion Results (from HLS Module)
     pub hls_result: Option<HLSResult>,
 
+    /// Benchmark Results (from Benchmark Module)
+    pub benchmark_result: Option<BenchmarkPipelineResult>,
+
+    /// Video Process Results (from Video Process Module)
+    pub video_process_result: Option<VideoProcessResult>,
+
+    /// Process Results (from Process Module)
+    pub process_result: Option<ProcessFilesResult>,
+
     /// Internal resource cache for lazy loading.
     /// We use Arc<Mutex<...>> to ensure thread safety (Sync) as required by PipelineContext.
     resources: HashMap<String, Box<dyn Any + Send + Sync>>,
@@ -53,6 +65,9 @@ impl MediaContext {
             annotation_result: None,
             extracted_frames: Vec::new(),
             hls_result: None,
+            benchmark_result: None,
+            video_process_result: None,
+            process_result: None,
             resources: HashMap::new(),
         }
     }
@@ -66,6 +81,9 @@ impl MediaContext {
             annotation_result: None,
             extracted_frames: Vec::new(),
             hls_result: None,
+            benchmark_result: None,
+            video_process_result: None,
+            process_result: None,
             resources: HashMap::new(),
         }
     }
