@@ -1,5 +1,6 @@
 use crate::analysis::types::AnalysisReport;
 use crate::annotation::pipeline::AnnotationResult;
+use crate::hls::pipeline::HLSResult;
 use crate::metadata::types::MediaMetadata;
 use crate::pipeline::error::PipelineError;
 use crate::pipeline::traits::PipelineContext;
@@ -32,6 +33,9 @@ pub struct MediaContext {
     /// Extracted Frames Buffer (from Streaming Module)
     pub extracted_frames: Vec<FrameData>,
 
+    /// HLS Conversion Results (from HLS Module)
+    pub hls_result: Option<HLSResult>,
+
     /// Internal resource cache for lazy loading.
     /// We use Arc<Mutex<...>> to ensure thread safety (Sync) as required by PipelineContext.
     resources: HashMap<String, Box<dyn Any + Send + Sync>>,
@@ -48,6 +52,7 @@ impl MediaContext {
             analysis: None,
             annotation_result: None,
             extracted_frames: Vec::new(),
+            hls_result: None,
             resources: HashMap::new(),
         }
     }
@@ -60,6 +65,7 @@ impl MediaContext {
             analysis: None,
             annotation_result: None,
             extracted_frames: Vec::new(),
+            hls_result: None,
             resources: HashMap::new(),
         }
     }
