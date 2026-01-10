@@ -1,15 +1,3 @@
-//! Pipeline Annotation Example
-//!
-//! This example demonstrates the Unified Media Pipeline for Annotation.
-//! It showcases ALL features of the annotation module through the pipeline pattern:
-//!
-//! 1. Single Frame Annotation (Filename)
-//! 2. Video from Frames (Filename)
-//! 3. Video from Frames (Timestamp)
-//! 4. Video from Frames (Custom Text)
-//!
-//! Run with: cargo run --bin pipeline_annotation
-
 use media_core::annotation::pipeline::{AnnotateFrame, AnnotateVideo};
 use media_core::annotation::{AnnotationType, TextPosition};
 use media_core::pipeline::{MediaContext, Pipeline};
@@ -23,111 +11,70 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_dir = "output/pipeline_annotation";
     std::fs::create_dir_all(output_dir)?;
 
-    // ============================================
-    // 1. Single Frame Annotation (Filename)
-    // ============================================
+    // Example 1. Single Frame Annotation
     println!("--- 1. Single Frame Annotation ---");
+    let sample_image = "data/test.jpg";
+    let pipeline = Pipeline::new().add_node(
+        AnnotateFrame::with_context_source(&format!("{}/annotated_frame.jpg", output_dir))
+            .annotation_type(AnnotationType::Filename)
+            .position(TextPosition::TopLeft),
+    );
+    let context = MediaContext::from_file(Path::new(sample_image).to_path_buf());
+    let result = pipeline.execute(context)?;
 
-    let sample_image = "output/video_process/test/frame_0.jpg";
-
-    if !Path::new(sample_image).exists() {
-        println!("⚠️  Sample image not found: {}. Skipping.", sample_image);
-    } else {
-        let pipeline = Pipeline::new().add_node(
-            AnnotateFrame::new(sample_image, &format!("{}/annotated_frame.jpg", output_dir))
-                .annotation_type(AnnotationType::Filename)
-                .position(TextPosition::TopLeft),
-        );
-
-        let context = MediaContext::from_file(Path::new("dummy").to_path_buf());
-        let result = pipeline.execute(context)?;
-
-        if let Some(ann) = result.annotation_result {
-            println!("   ✅ Output: {}", ann.output_path);
-        }
+    if let Some(ann) = result.annotation_result {
+        println!("   ✅ Output: {}", ann.output_path);
     }
 
-    // ============================================
-    // 2. Video from Frames (Filename)
-    // ============================================
-    println!("\n--- 2. Video from Frames (Filename) ---");
-
-    let frames_dir = "output/video_process/test";
-
-    if !Path::new(frames_dir).exists() {
-        println!("⚠️  Frames directory not found: {}. Skipping.", frames_dir);
-    } else {
-        let pipeline = Pipeline::new().add_node(
-            AnnotateVideo::new(
-                frames_dir,
-                &format!("{}/annotated_filename.mp4", output_dir),
-            )
+    // Example 2. Video from Video File (Filename)
+    println!("\n--- 2. Video from Video File (Filename) ---");
+    let video_path = "data/test.mp4";
+    let pipeline = Pipeline::new().add_node(
+        AnnotateVideo::with_context_source(&format!("{}/annotated_video_filename.mp4", output_dir))
             .annotation_type(AnnotationType::Filename)
             .position(TextPosition::TopLeft)
             .fps(30),
-        );
+    );
+    let context = MediaContext::from_file(Path::new(video_path).to_path_buf());
+    let result = pipeline.execute(context)?;
 
-        let context = MediaContext::from_file(Path::new("dummy").to_path_buf());
-        let result = pipeline.execute(context)?;
-
-        if let Some(ann) = result.annotation_result {
-            println!("   ✅ Output: {}", ann.output_path);
-        }
+    if let Some(ann) = result.annotation_result {
+        println!("   ✅ Output: {}", ann.output_path);
     }
 
-    // ============================================
-    // 3. Video from Frames (Timestamp)
-    // ============================================
-    println!("\n--- 3. Video from Frames (Timestamp) ---");
+    // Example 3. Video from Video File (Timestamp)
+    println!("\n--- 3. Video from Video File (Timestamp) ---");
+    let pipeline = Pipeline::new().add_node(
+        AnnotateVideo::with_context_source(&format!(
+            "{}/annotated_video_timestamp.mp4",
+            output_dir
+        ))
+        .annotation_type(AnnotationType::Timestamp)
+        .position(TextPosition::BottomLeft)
+        .fps(30)
+        .source_fps(30.0),
+    );
+    let context = MediaContext::from_file(Path::new(video_path).to_path_buf());
+    let result = pipeline.execute(context)?;
 
-    if !Path::new(frames_dir).exists() {
-        println!("⚠️  Frames directory not found. Skipping.");
-    } else {
-        let pipeline = Pipeline::new().add_node(
-            AnnotateVideo::new(
-                frames_dir,
-                &format!("{}/annotated_timestamp.mp4", output_dir),
-            )
-            .annotation_type(AnnotationType::Timestamp)
-            .position(TextPosition::BottomLeft)
-            .fps(30)
-            .source_fps(30.0),
-        );
-
-        let context = MediaContext::from_file(Path::new("dummy").to_path_buf());
-        let result = pipeline.execute(context)?;
-
-        if let Some(ann) = result.annotation_result {
-            println!("   ✅ Output: {}", ann.output_path);
-        }
+    if let Some(ann) = result.annotation_result {
+        println!("   ✅ Output: {}", ann.output_path);
     }
 
-    // ============================================
-    // 4. Video from Frames (Custom Text)
-    // ============================================
-    println!("\n--- 4. Video from Frames (Custom Text) ---");
+    // Example 4. Video from Video File (Custom Text)
+    println!("\n--- 4. Video from Video File (Custom Text) ---");
+    let pipeline = Pipeline::new().add_node(
+        AnnotateVideo::with_context_source(&format!("{}/annotated_video_custom.mp4", output_dir))
+            .annotation_type(AnnotationType::Custom("Watermark".to_string()))
+            .position(TextPosition::TopRight)
+            .fps(30),
+    );
+    let context = MediaContext::from_file(Path::new(video_path).to_path_buf());
+    let result = pipeline.execute(context)?;
 
-    if !Path::new(frames_dir).exists() {
-        println!("⚠️  Frames directory not found. Skipping.");
-    } else {
-        let pipeline = Pipeline::new().add_node(
-            AnnotateVideo::new(frames_dir, &format!("{}/annotated_custom.mp4", output_dir))
-                .annotation_type(AnnotationType::Custom("Watermark".to_string()))
-                .position(TextPosition::TopRight)
-                .fps(30),
-        );
-
-        let context = MediaContext::from_file(Path::new("dummy").to_path_buf());
-        let result = pipeline.execute(context)?;
-
-        if let Some(ann) = result.annotation_result {
-            println!("   ✅ Output: {}", ann.output_path);
-        }
+    if let Some(ann) = result.annotation_result {
+        println!("   ✅ Output: {}", ann.output_path);
     }
-
-    println!("\n===========================================");
-    println!("       ✅ All Annotation Examples Completed!");
-    println!("===========================================");
 
     Ok(())
 }

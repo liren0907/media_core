@@ -23,17 +23,27 @@ pub struct AnnotationResult {
 
 /// A pipeline step that annotates a single image with text overlay.
 pub struct AnnotateFrame {
-    input_path: PathBuf,
+    input_path: Option<PathBuf>,
     output_path: PathBuf,
     annotation_type: AnnotationType,
     text_position: TextPosition,
 }
 
 impl AnnotateFrame {
-    /// Create a new AnnotateFrame step
+    /// Create a new AnnotateFrame step with a specific input file.
     pub fn new<P: AsRef<Path>>(input: P, output: P) -> Self {
         Self {
-            input_path: input.as_ref().to_path_buf(),
+            input_path: Some(input.as_ref().to_path_buf()),
+            output_path: output.as_ref().to_path_buf(),
+            annotation_type: AnnotationType::Filename,
+            text_position: TextPosition::TopLeft,
+        }
+    }
+
+    /// Create a new AnnotateFrame step that uses the pipeline context's source as input.
+    pub fn with_context_source<P: AsRef<Path>>(output: P) -> Self {
+        Self {
+            input_path: None,
             output_path: output.as_ref().to_path_buf(),
             annotation_type: AnnotationType::Filename,
             text_position: TextPosition::TopLeft,
@@ -59,8 +69,23 @@ impl PipelineStep<MediaContext> for AnnotateFrame {
     }
 
     fn execute(&self, context: &mut MediaContext) -> Result<(), PipelineError> {
+        // Resolve input path: use step's path if available, otherwise try context source
+        let input_path = if let Some(path) = &self.input_path {
+            path.clone()
+        } else {
+            use crate::pipeline::types::MediaSource;
+            match &context.source {
+                MediaSource::File(path) => path.clone(),
+                _ => {
+                    return Err(PipelineError::ConfigurationError(
+                        "AnnotateFrame requires a file source in the context if no input path is provided in the step".to_string(),
+                    ))
+                }
+            }
+        };
+
         let config = AnnotationConfig {
-            input: DataSource::Image(self.input_path.to_string_lossy().to_string()),
+            input: DataSource::Image(input_path.to_string_lossy().to_string()),
             output_path: self.output_path.to_string_lossy().to_string(),
             text_position: self.text_position.clone(),
             annotation_type: self.annotation_type.clone(),
@@ -92,7 +117,7 @@ impl PipelineStep<MediaContext> for AnnotateFrame {
 
 /// A pipeline step that creates an annotated video from a directory of frames.
 pub struct AnnotateVideo {
-    frames_dir: PathBuf,
+    frames_dir: Option<PathBuf>,
     output_path: PathBuf,
     annotation_type: AnnotationType,
     text_position: TextPosition,
@@ -101,10 +126,22 @@ pub struct AnnotateVideo {
 }
 
 impl AnnotateVideo {
-    /// Create a new AnnotateVideo step
+    /// Create a new AnnotateVideo step with a specific frames directory.
     pub fn new<P: AsRef<Path>>(frames_dir: P, output: P) -> Self {
         Self {
-            frames_dir: frames_dir.as_ref().to_path_buf(),
+            frames_dir: Some(frames_dir.as_ref().to_path_buf()),
+            output_path: output.as_ref().to_path_buf(),
+            annotation_type: AnnotationType::Filename,
+            text_position: TextPosition::TopLeft,
+            fps: 30,
+            source_fps: 30.0,
+        }
+    }
+
+    /// Create a new AnnotateVideo step that uses the pipeline context's source as the frames directory.
+    pub fn with_context_source<P: AsRef<Path>>(output: P) -> Self {
+        Self {
+            frames_dir: None,
             output_path: output.as_ref().to_path_buf(),
             annotation_type: AnnotationType::Filename,
             text_position: TextPosition::TopLeft,
@@ -144,8 +181,42 @@ impl PipelineStep<MediaContext> for AnnotateVideo {
     }
 
     fn execute(&self, context: &mut MediaContext) -> Result<(), PipelineError> {
+        // Resolve input path: use step's path if available, otherwise try context source
+        let input_path = if let Some(path) = &self.frames_dir {
+            path.clone()
+        } else {
+            use crate::pipeline::types::MediaSource;
+            match &context.source {
+                MediaSource::File(path) => path.clone(),
+                _ => {
+                    return Err(PipelineError::ConfigurationError(
+                        "AnnotateVideo requires a file source (directory or video file) in the context if no input path is provided in the step".to_string(),
+                    ))
+                }
+            }
+        };
+
+        // Determine Data Source Type
+        let data_source = if input_path.is_dir() {
+            DataSource::FrameDir(input_path.to_string_lossy().to_string())
+        } else if input_path.is_file() {
+            DataSource::Video(input_path.to_string_lossy().to_string())
+        } else {
+            // Fallback/Error if path doesn't exist yet (maybe it's a future output?)
+            // For now, let's assume if extension is mp4/avi/mov it is video, else Dir?
+            // Or safer: check existence. If not exists, standard pipeline error.
+            if !input_path.exists() {
+                return Err(PipelineError::ConfigurationError(format!(
+                    "Input path does not exist: {:?}",
+                    input_path
+                )));
+            }
+            // Default fallback
+            DataSource::Video(input_path.to_string_lossy().to_string())
+        };
+
         let config = AnnotationConfig {
-            input: DataSource::FrameDir(self.frames_dir.to_string_lossy().to_string()),
+            input: data_source,
             output_path: self.output_path.to_string_lossy().to_string(),
             text_position: self.text_position.clone(),
             annotation_type: self.annotation_type.clone(),
