@@ -1,15 +1,3 @@
-//! Pipeline Process Example
-//!
-//! This example demonstrates the Unified Media Pipeline for File Processing.
-//! It showcases the process module through the pipeline pattern:
-//!
-//! 1. Single file processing
-//! 2. Directory processing mode
-//! 3. Batch processing mode
-//! 4. Generate default config file (utility)
-//!
-//! Run with: cargo run --bin pipeline_process
-
 use media_core::pipeline::{MediaContext, Pipeline};
 use media_core::process::{ProcessFiles, ProcessingMode, generate_default_config};
 use std::path::Path;
@@ -22,22 +10,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let video_path = "data/test.mp4";
     let output_base = "output/pipeline_process";
 
-    // Check if test file exists
-    if !Path::new(video_path).exists() {
-        eprintln!("⚠️  Test video not found: {}", video_path);
-        eprintln!("   Place a test video at 'data/test.mp4' to run this example.");
-        return Ok(());
-    }
-
-    // Clean up previous output
-    if Path::new(output_base).exists() {
-        std::fs::remove_dir_all(output_base)?;
-    }
     std::fs::create_dir_all(output_base)?;
 
-    // ============================================
     // 1. Single File Processing
-    // ============================================
+    // This example processes a single video file (data/test.mp4) and saves the result to the output directory.
     println!("🚀 1. Single File Processing");
     println!("----------------------------------------------");
 
@@ -56,9 +32,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!();
 
-    // ============================================
     // 2. Directory Processing Mode
-    // ============================================
+    // This example processes all files in a directory (simulated here using the same single file as context for demo purposes)
+    // and saves them to the output directory. It also demonstrates the 'overwrite' flag.
     println!("🚀 2. Directory Processing Mode");
     println!("----------------------------------------------");
 
@@ -79,9 +55,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!();
 
-    // ============================================
     // 3. Batch Processing Mode
-    // ============================================
+    // This example simulates batch processing where multiple files are processed as a group.
     println!("🚀 3. Batch Processing Mode");
     println!("----------------------------------------------");
 
@@ -99,9 +74,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     println!();
 
-    // ============================================
     // 4. Generate Default Config File (Utility)
-    // ============================================
+    // This utility function generates a default JSON configuration file for the process module.
     println!("📄 4. Generate Default Config File");
     println!("----------------------------------------------");
 
