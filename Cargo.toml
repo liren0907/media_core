@@ -24,6 +24,10 @@ name = "video_process"
 path = "src/bin/video_process.rs"
 
 [[bin]]
+name = "pipeline_camera"
+path = "src/bin/pipeline_camera.rs"
+
+[[bin]]
 name = "benchmark"
 path = "src/bin/benchmark.rs"
 

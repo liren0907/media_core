@@ -7,6 +7,8 @@ pub enum MediaSource {
     File(PathBuf),
     /// A network stream URL (e.g., RTSP, RTMP, HTTP)
     Stream(String),
+    /// A local camera device ID
+    Camera(i32),
 }
 
 impl MediaSource {
@@ -14,6 +16,14 @@ impl MediaSource {
     pub fn as_path_str(&self) -> Option<&str> {
         match self {
             MediaSource::File(p) => p.to_str(),
+            _ => None,
+        }
+    }
+
+    /// Helper to get the camera ID if it is a camera
+    pub fn as_camera_id(&self) -> Option<i32> {
+        match self {
+            MediaSource::Camera(id) => Some(*id),
             _ => None,
         }
     }

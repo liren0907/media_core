@@ -1,13 +1,6 @@
 //! Pipeline HLS Example
 //!
 //! This example demonstrates the Unified Media Pipeline for HLS conversion.
-//! It showcases ALL features of the HLS module through the pipeline pattern:
-//!
-//! 1. Basic HLS conversion with default settings
-//! 2. Custom segment duration and playlist name
-//! 3. Combined metadata + HLS pipeline with custom profile/level
-//! 4. Disable force keyframes option
-//!
 //! Run with: cargo run --bin pipeline_hls
 
 use media_core::hls::pipeline::ConvertToHLS;
@@ -23,23 +16,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let video_path = "data/test.mp4";
     let output_base = "output/pipeline_hls";
 
-    // Check if test file exists
-    if !Path::new(video_path).exists() {
-        eprintln!("⚠️  Test video not found: {}", video_path);
-        eprintln!("   Place a test video at 'data/test.mp4' to run this example.");
-        return Ok(());
-    }
-
-    // Clean up previous output
-    if Path::new(output_base).exists() {
-        std::fs::remove_dir_all(output_base)?;
-    }
-
-    // ============================================
     // 1. Basic HLS Conversion
-    // ============================================
-    println!("🚀 1. Basic HLS Conversion (default settings)");
-    println!("----------------------------------------------");
+    // Converts video to HLS with default settings (5s segments, baseline profile).
+    println!("🚀 1. Basic HLS Conversion");
 
     let pipeline = Pipeline::new().add_node(ConvertToHLS::new(format!("{}/basic", output_base)));
 
@@ -47,17 +26,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = pipeline.execute(context)?;
 
     if let Some(hls) = &result.hls_result {
-        println!("   ✅ Output: {}", hls.output_dir);
-        println!("   Playlist: {}", hls.playlist_path);
-        println!("   Segments: {}", hls.segment_count);
+        println!(
+            "   ✅ Segments={} | Playlist={} | Output={}",
+            hls.segment_count, hls.playlist_path, hls.output_dir
+        );
     }
-    println!();
 
-    // ============================================
     // 2. Custom Segment Duration
-    // ============================================
-    println!("🚀 2. Custom Segment Duration (10 seconds)");
-    println!("----------------------------------------------");
+    // Sets 10-second segments with custom playlist name.
+    println!("🚀 2. Custom Segment Duration (10s)");
 
     let pipeline = Pipeline::new().add_node(
         ConvertToHLS::new(format!("{}/custom_duration", output_base))
@@ -69,17 +46,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = pipeline.execute(context)?;
 
     if let Some(hls) = &result.hls_result {
-        println!("   ✅ Output: {}", hls.output_dir);
-        println!("   Playlist: {}", hls.playlist_path);
-        println!("   Segments: {}", hls.segment_count);
+        println!(
+            "   ✅ Segments={} | Playlist={} | Output={}",
+            hls.segment_count, hls.playlist_path, hls.output_dir
+        );
     }
-    println!();
 
-    // ============================================
     // 3. Combined Pipeline: Metadata + HLS
-    // ============================================
+    // Extracts metadata first, then converts with custom profile/level.
     println!("🚀 3. Combined Pipeline: Metadata + HLS");
-    println!("----------------------------------------------");
 
     let pipeline = Pipeline::new()
         .add_node(ExtractMetadata::new(false))
@@ -94,24 +69,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = pipeline.execute(context)?;
 
     if let Some(meta) = &result.metadata {
-        println!("   📹 Video Info:");
-        println!("      Resolution: {}", meta.resolution);
-        println!("      FPS: {:?}", meta.fps);
+        println!("   📹 Resolution={} | FPS={:?}", meta.resolution, meta.fps);
     }
-
     if let Some(hls) = &result.hls_result {
-        println!("   📦 HLS Output:");
-        println!("      Directory: {}", hls.output_dir);
-        println!("      Playlist: {}", hls.playlist_path);
-        println!("      Segments: {}", hls.segment_count);
+        println!(
+            "   ✅ Segments={} | Playlist={} | Output={}",
+            hls.segment_count, hls.playlist_path, hls.output_dir
+        );
     }
-    println!();
 
-    // ============================================
     // 4. Disable Force Keyframes
-    // ============================================
-    println!("🚀 4. Disable Force Keyframes (faster encoding)");
-    println!("----------------------------------------------");
+    // Faster encoding but less precise segment boundaries.
+    println!("🚀 4. Disable Force Keyframes");
 
     let pipeline = Pipeline::new().add_node(
         ConvertToHLS::new(format!("{}/no_keyframes", output_base))
@@ -123,15 +92,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = pipeline.execute(context)?;
 
     if let Some(hls) = &result.hls_result {
-        println!("   ✅ Output: {}", hls.output_dir);
-        println!("   Playlist: {}", hls.playlist_path);
-        println!("   Segments: {}", hls.segment_count);
+        println!(
+            "   ✅ Segments={} | Playlist={} | Output={}",
+            hls.segment_count, hls.playlist_path, hls.output_dir
+        );
     }
-    println!();
-
-    println!("===========================================");
-    println!("       ✅ All HLS Examples Completed!");
-    println!("===========================================");
 
     Ok(())
 }

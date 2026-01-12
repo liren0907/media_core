@@ -117,9 +117,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         print_summary(vp, elapsed);
     }
 
-    println!("===========================================");
-    println!("       ✅ All Video Process Examples Completed!");
-    println!("===========================================");
-
     Ok(())
 }

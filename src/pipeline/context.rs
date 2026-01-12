@@ -88,6 +88,22 @@ impl MediaContext {
         }
     }
 
+    /// Create a new context from a camera ID
+    pub fn from_camera(camera_id: i32) -> Self {
+        Self {
+            source: MediaSource::Camera(camera_id),
+            metadata: None,
+            analysis: None,
+            annotation_result: None,
+            extracted_frames: Vec::new(),
+            hls_result: None,
+            benchmark_result: None,
+            video_process_result: None,
+            process_result: None,
+            resources: HashMap::new(),
+        }
+    }
+
     /// Get (or lazily initialize) the OpenCV VideoCapture resource.
     ///
     /// This ensures we only open the file once, even if multiple steps need it.
@@ -99,24 +115,25 @@ impl MediaContext {
 
         if !self.resources.contains_key(KEY) {
             // Initialize the resource
-            let path_str = match &self.source {
-                MediaSource::File(p) => p.to_str().ok_or(PipelineError::ConfigurationError(
-                    "Invalid file path".to_string(),
-                ))?,
-                MediaSource::Stream(s) => s.as_str(),
-            };
-
-            let cap = VideoCapture::from_file(path_str, CAP_ANY).map_err(|e| {
-                PipelineError::StepFailed {
-                    step_name: "ResourceInit".to_string(),
-                    error: format!("Failed to open OpenCV capture: {}", e),
+            let cap = match &self.source {
+                MediaSource::File(p) => {
+                    let path_str = p.to_str().ok_or(PipelineError::ConfigurationError(
+                        "Invalid file path".to_string(),
+                    ))?;
+                    VideoCapture::from_file(path_str, CAP_ANY)
                 }
+                MediaSource::Stream(s) => VideoCapture::from_file(s, CAP_ANY),
+                MediaSource::Camera(id) => VideoCapture::new(*id, CAP_ANY),
+            }
+            .map_err(|e| PipelineError::StepFailed {
+                step_name: "ResourceInit".to_string(),
+                error: format!("Failed to open OpenCV capture: {}", e),
             })?;
 
             if !cap.is_opened().unwrap_or(false) {
                 return Err(PipelineError::StepFailed {
                     step_name: "ResourceInit".to_string(),
-                    error: format!("OpenCV capture is not opened for: {}", path_str),
+                    error: format!("OpenCV capture is not opened for source: {:?}", self.source),
                 });
             }
 
