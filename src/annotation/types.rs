@@ -59,6 +59,7 @@ impl Default for VideoOutputConfig {
 pub enum DataSource {
     Image(String),
     FrameDir(String),
+    Video(String),
 }
 
 impl Default for DataSource {

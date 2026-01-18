@@ -1,10 +1,9 @@
 use crate::annotation::overlay::add_text_overlay_with_position;
 use crate::annotation::types::{AnnotationConfig, AnnotationType, DataSource, format_timestamp};
-use opencv::{core::Vector, imgcodecs};
+use opencv::{core::Vector, imgcodecs, prelude::*};
 use regex::Regex;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 
 pub struct FrameAnnotator {
     config: AnnotationConfig,
@@ -19,6 +18,7 @@ impl FrameAnnotator {
         match &self.config.input {
             DataSource::Image(path) => self.process_single_image(path),
             DataSource::FrameDir(dir) => self.process_video_frames(dir),
+            DataSource::Video(path) => self.process_video_file(path),
         }
     }
 
@@ -58,13 +58,85 @@ impl FrameAnnotator {
         Ok(())
     }
 
+    fn process_video_file(
+        &self,
+        input_path: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut cap =
+            opencv::videoio::VideoCapture::from_file(input_path, opencv::videoio::CAP_ANY)?;
+        if !cap.is_opened()? {
+            return Err(format!("Failed to open video file: {}", input_path).into());
+        }
+
+        let fps = if let Some(source_fps) = self.config.source_fps {
+            source_fps
+        } else {
+            cap.get(opencv::videoio::CAP_PROP_FPS)?
+        };
+
+        let width = cap.get(opencv::videoio::CAP_PROP_FRAME_WIDTH)? as i32;
+        let height = cap.get(opencv::videoio::CAP_PROP_FRAME_HEIGHT)? as i32;
+        let size = opencv::core::Size::new(width, height);
+
+        // Initialize VideoWriter
+        let output_fps = if let Some(video_config) = &self.config.video_encoding {
+            video_config.fps as f64
+        } else {
+            fps
+        };
+
+        let fourcc = opencv::videoio::VideoWriter::fourcc('m', 'p', '4', 'v')?;
+        let mut writer = opencv::videoio::VideoWriter::new(
+            &self.config.output_path,
+            fourcc,
+            output_fps,
+            size,
+            true,
+        )?;
+
+        if !writer.is_opened()? {
+            return Err(
+                format!("Failed to open VideoWriter for {}", self.config.output_path).into(),
+            );
+        }
+
+        let mut frame = opencv::prelude::Mat::default();
+        let mut frame_count = 0;
+
+        loop {
+            if !cap.read(&mut frame)? || frame.empty() {
+                break;
+            }
+
+            let annotation_text = match &self.config.annotation_type {
+                AnnotationType::Filename => Path::new(input_path)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string(),
+                AnnotationType::Timestamp => format_timestamp(frame_count, fps),
+                AnnotationType::Custom(text) => text.clone(),
+            };
+
+            add_text_overlay_with_position(
+                &mut frame,
+                &annotation_text,
+                self.config.text_position.clone(),
+            )?;
+
+            writer.write(&frame)?;
+            frame_count += 1;
+        }
+
+        println!("Successfully created video: {}", self.config.output_path);
+        Ok(())
+    }
+
     fn process_video_frames(
         &self,
         frames_dir: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let output_dir = Path::new(frames_dir);
-        let temp_dir = output_dir.join("temp_annotated");
-        fs::create_dir_all(&temp_dir)?;
 
         let mut image_files: Vec<_> = fs::read_dir(output_dir)?
             .filter_map(|entry| entry.ok())
@@ -80,8 +152,43 @@ impl FrameAnnotator {
 
         image_files.sort_by_key(|entry| entry.path());
 
+        if image_files.is_empty() {
+            return Ok(());
+        }
+
         let frame_regex = Regex::new(r"(\d+)")?;
         let fps = self.config.source_fps.unwrap_or(30.0);
+
+        // Initialize VideoWriter if video encoding is enabled
+        let mut video_writer = if let Some(video_config) = &self.config.video_encoding {
+            // Read the first frame to determine size
+            let first_frame_path = image_files[0].path();
+            let first_frame =
+                imgcodecs::imread(first_frame_path.to_str().unwrap(), imgcodecs::IMREAD_COLOR)?;
+            let size = opencv::core::Size::new(first_frame.cols(), first_frame.rows());
+
+            // Use 'mp4v' or 'avc1' for MP4. 'mp4v' is generally safe for OpenCV's default backend on most systems.
+            // On macOS, it might use AVFoundation.
+            let fourcc = opencv::videoio::VideoWriter::fourcc('m', 'p', '4', 'v')?;
+
+            let writer = opencv::videoio::VideoWriter::new(
+                &self.config.output_path,
+                fourcc, // apiPreference (0 = auto)
+                video_config.fps as f64,
+                size,
+                true, // isColor
+            )?;
+
+            if !writer.is_opened()? {
+                return Err(
+                    format!("Failed to open VideoWriter for {}", self.config.output_path).into(),
+                );
+            }
+
+            Some(writer)
+        } else {
+            None
+        };
 
         for entry in &image_files {
             let path = entry.path();
@@ -110,42 +217,15 @@ impl FrameAnnotator {
                 self.config.text_position.clone(),
             )?;
 
-            let output_path = temp_dir.join(filename);
-            imgcodecs::imwrite(output_path.to_str().unwrap(), &img, &Vector::new())?;
-        }
-
-        // Video Generation
-        if let Some(video_config) = &self.config.video_encoding {
-            // If output_path is just a filename, put it in the frames dir?
-            // The requirement was unified "output_path". Let's use full path.
-            let output_video_path = &self.config.output_path;
-
-            let mut cmd = Command::new("ffmpeg");
-            cmd.arg("-y")
-                .arg("-framerate")
-                .arg(video_config.fps.to_string())
-                .arg("-pattern_type")
-                .arg("glob")
-                .arg("-i")
-                .arg(format!("{}/*.jpg", temp_dir.to_str().unwrap()))
-                .arg("-c:v")
-                .arg("libx264")
-                .arg("-pix_fmt")
-                .arg("yuv420p")
-                .arg(output_video_path);
-
-            let output = cmd.output()?;
-            if !output.status.success() {
-                return Err(format!(
-                    "Failed to create video: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                )
-                .into());
+            // Write to video if writer exists
+            if let Some(writer) = &mut video_writer {
+                writer.write(&img)?;
             }
-            println!("Successfully created video: {}", output_video_path);
         }
 
-        fs::remove_dir_all(temp_dir)?;
+        if video_writer.is_some() {
+            println!("Successfully created video: {}", self.config.output_path);
+        }
 
         Ok(())
     }

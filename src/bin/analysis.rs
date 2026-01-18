@@ -38,7 +38,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match MotionDetector::new(motion_config) {
         Ok(mut detector) => {
             if !video_path.exists() {
-                 println!("⚠️  Video file not found: {}. Skipping Motion Detection.", video_path.display());
+                println!(
+                    "⚠️  Video file not found: {}. Skipping Motion Detection.",
+                    video_path.display()
+                );
             } else {
                 println!("Starting motion detection on: {}", video_path.display());
                 println!("This may take a while depending on video length...");
@@ -72,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ============================================
     println!("\n--- 2. Image Similarity ---");
     println!("Initializing Image Similarity Analyzer...");
-    
+
     // Analyzer usually takes a directory of images
     let image_dir = std::path::PathBuf::from("data/images");
     let sim_config = SimilarityConfig {
@@ -81,7 +84,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if !image_dir.exists() {
-         println!("⚠️  Image directory not found: {}. Skipping General Image Similarity.", image_dir.display());
+        println!(
+            "⚠️  Image directory not found: {}. Skipping General Image Similarity.",
+            image_dir.display()
+        );
     } else {
         // SimilarityAnalyzer::new returns a Result
         match SimilarityAnalyzer::new(sim_config) {
@@ -120,33 +126,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let phash_config = SimilarityConfig {
             method: SimilarityMethod::PerceptualHash,
             perceptual_hash: PerceptualHashConfig {
-                hash_size: 8,                // 8x8 pHash (64-bit)
-                similarity_threshold: 0.95,  // 95% similarity threshold
+                hash_size: 8,               // 8x8 pHash (64-bit)
+                similarity_threshold: 0.95, // 95% similarity threshold
             },
             ..Default::default()
         };
 
         match SimilarityAnalyzer::new(phash_config) {
-            Ok(mut analyzer) => {
-                match analyzer.compare_images(img1_path, img2_path) {
-                    Ok(similarity) => {
-                        let threshold = 0.95;
-                        let is_duplicate = similarity >= threshold;
+            Ok(mut analyzer) => match analyzer.compare_images(img1_path, img2_path) {
+                Ok(similarity) => {
+                    let threshold = 0.95;
+                    let is_duplicate = similarity >= threshold;
 
-                        println!("\n📊 Results:");
-                        println!("   Similarity Score: {:.2}%", similarity * 100.0);
-                        println!("   Threshold:        {:.2}%", threshold * 100.0);
-                        println!("   Is Duplicate?     {}", if is_duplicate { "Yes" } else { "No" });
+                    println!("\n📊 Results:");
+                    println!("   Similarity Score: {:.2}%", similarity * 100.0);
+                    println!("   Threshold:        {:.2}%", threshold * 100.0);
+                    println!(
+                        "   Is Duplicate?     {}",
+                        if is_duplicate { "Yes" } else { "No" }
+                    );
 
-                        if is_duplicate {
-                            println!("\n✅ Conclusion: These images are visually identical.");
-                        } else {
-                            println!("\n❌ Conclusion: These images are different.");
-                        }
+                    if is_duplicate {
+                        println!("\n✅ Conclusion: These images are visually identical.");
+                    } else {
+                        println!("\n❌ Conclusion: These images are different.");
                     }
-                    Err(e) => eprintln!("❌ Comparison failed: {}", e),
                 }
-            }
+                Err(e) => eprintln!("❌ Comparison failed: {}", e),
+            },
             Err(e) => eprintln!("❌ Failed to initialize SimilarityAnalyzer: {}", e),
         }
     }
@@ -157,15 +164,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n========================================================");
     println!("--- 4. Comprehensive Algorithm Comparison (All Methods) ---");
     println!("========================================================");
-    
+
     // We will run the clustering on the same input directory using ALL available methods
     // to see how results differ.
-    
+
     let comparison_input_dir = Path::new("references/media-lake/data");
     let comparison_base_output = output_dir.join("algorithm_comparison");
 
-    println!("Running comprehensive comparison on: {}", comparison_input_dir.display());
-    println!("Output base directory: {}", comparison_base_output.display());
+    println!(
+        "Running comprehensive comparison on: {}",
+        comparison_input_dir.display()
+    );
+    println!(
+        "Output base directory: {}",
+        comparison_base_output.display()
+    );
 
     // Define the methods to test
     let methods = vec![
@@ -176,7 +189,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for (method, name) in methods {
         println!("\n🔹 Running Method: {}", name.to_uppercase());
-        
+
         let method_output_dir = comparison_base_output.join(name);
         println!("   Output Directory: {}", method_output_dir.display());
 
@@ -202,10 +215,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match analyzer.group_similar_images(comparison_input_dir, &method_output_dir) {
                     Ok(groups) => {
                         println!("   ✅ Complete. Found {} groups.", groups.len());
-                            if !groups.is_empty() {
+                        if !groups.is_empty() {
                             println!("   First few groups found:");
                             for (group_name, members) in groups.iter().take(3) {
-                                    println!("      - {}: {} images", group_name, members.len());
+                                println!("      - {}: {} images", group_name, members.len());
                             }
                         } else {
                             println!("      (No groups found with this method/threshold)");
@@ -217,9 +230,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Err(e) => eprintln!("   ❌ Failed to initialize analyzer: {}", e),
         }
     }
-    
+
     println!("\n✅ Comprehensive comparison complete.");
-    println!("   Check {} to inspect detailed results.", comparison_base_output.display());
+    println!(
+        "   Check {} to inspect detailed results.",
+        comparison_base_output.display()
+    );
 
     Ok(())
 }
