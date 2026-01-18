@@ -9,6 +9,7 @@ pub mod config;
 pub mod factories;
 pub mod handlers;
 pub mod hw_accel;
+pub mod pipeline;
 pub mod processor;
 pub mod stats;
 pub mod types;
@@ -25,6 +26,7 @@ pub use factories::{
     create_video_processor,
 };
 pub use hw_accel::{HardwareAccelConfig, HardwareAcceleratedCapture};
+pub use pipeline::{ProcessFiles, ProcessFilesResult};
 pub use processor::Processor;
 pub use stats::ProcessingStats;
 pub use types::{

@@ -1,5 +1,6 @@
 mod camera;
 mod helpers;
+pub mod pipeline;
 mod types;
 mod utils;
 

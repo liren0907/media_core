@@ -1,6 +1,6 @@
 [package]
 name = "media_core"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 
 [lib]
@@ -22,6 +22,10 @@ path = "src/bin/process.rs"
 [[bin]]
 name = "video_process"
 path = "src/bin/video_process.rs"
+
+[[bin]]
+name = "pipeline_camera"
+path = "src/bin/pipeline_camera.rs"
 
 [[bin]]
 name = "benchmark"
@@ -66,6 +70,7 @@ base64 = "0.22"
 walkdir = "2.4"
 prettytable-rs = "0.10"
 lazy_static = "1.4"
+thiserror = "2.0.17"
 
 # Dependencies from rtsp_stream_extractor
 rfd = "0.14.1"

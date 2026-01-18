@@ -4,6 +4,7 @@ pub mod benchmark;
 pub mod camera;
 pub mod hls;
 pub mod metadata;
+pub mod pipeline;
 pub mod process;
 pub mod rtsp;
 pub mod rtsp_sync;

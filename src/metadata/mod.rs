@@ -3,6 +3,7 @@ pub mod codec_analyzer_ffprobe;
 pub mod helpers;
 pub mod image_processor;
 pub mod orchestrator;
+pub mod pipeline;
 pub mod quality_analyzer;
 pub mod thumbnail_generator;
 pub mod types;

@@ -1,5 +1,6 @@
 pub mod annotator;
 pub mod overlay;
+pub mod pipeline;
 pub mod types;
 
 pub use annotator::FrameAnnotator;
