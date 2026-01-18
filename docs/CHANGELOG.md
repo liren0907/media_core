@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0] - 2026-01-18
+
+### Added
+- **Unified Media Pipeline**: Introduced a new `pipeline` module with "Blackboard Pattern" architecture.
+  - `MediaContext`: Shared state for passing data between processing steps.
+  - `Pipeline` traits: Standardized `PipelineStep` and `PipelineBuilder`.
+- **Pipeline Adapters**: Added pipeline step implementations for all core modules:
+  - `analysis`: Motion detection and similarity grouping.
+  - `annotation`: Text overlay and drawing operations.
+  - `benchmark`: Pipeline performance monitoring.
+  - `camera`: Camera source integration.
+  - `hls`: HLS segmentation within the pipeline.
+  - `metadata`: Metadata extraction step.
+  - `process`: File processing adapter.
+  - `streaming`: Frame extraction adapter.
+  - `video_process`: Advanced video processing adapter.
+- **Documentation**: Added comprehensive guides for the new architecture:
+  - `docs/PIPELINE_DEVELOPMENT.md`: Architectural vision and roadmap.
+  - `docs/PIPELINE_USAGE.md`: Usage guide with examples.
+- **Example Binaries**: Added `pipeline_*` binaries demonstrating usage of the new system (e.g., `pipeline_analysis.rs`, `pipeline_process.rs`).
+
 ## [0.3.1] - 2026-01-04
 
 ### Added
